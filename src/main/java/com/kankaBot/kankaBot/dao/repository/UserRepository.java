@@ -1,6 +1,6 @@
-package io.proj3ct.kankaBot.dao.abstracts;
+package com.kankaBot.kankaBot.dao.repository;
 
-import io.proj3ct.kankaBot.models.User;
+import com.kankaBot.kankaBot.models.UserData.User;
 import org.springframework.data.repository.CrudRepository;
 
 public interface UserRepository extends CrudRepository<User, Long> {

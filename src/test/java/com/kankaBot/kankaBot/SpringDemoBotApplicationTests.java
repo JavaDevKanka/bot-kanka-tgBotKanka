@@ -1,4 +1,4 @@
-package io.proj3ct.kankaBot;
+package com.kankaBot.kankaBot;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

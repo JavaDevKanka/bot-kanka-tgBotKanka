@@ -1,4 +1,4 @@
-package io.proj3ct.kankaBot.config;
+package com.kankaBot.kankaBot.config;
 
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;

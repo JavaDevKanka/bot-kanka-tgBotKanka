@@ -1,6 +1,6 @@
-package io.proj3ct.kankaBot.config;
+package com.kankaBot.kankaBot.config;
 
-import io.proj3ct.kankaBot.service.TelegramBot;
+import com.kankaBot.kankaBot.service.TelegramBot;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;

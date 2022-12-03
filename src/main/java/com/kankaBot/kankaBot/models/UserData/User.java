@@ -1,4 +1,4 @@
-package io.proj3ct.kankaBot.models;
+package com.kankaBot.kankaBot.models.UserData;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

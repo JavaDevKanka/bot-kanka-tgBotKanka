@@ -1,6 +1,6 @@
-package io.proj3ct.kankaBot.dao.abstracts;
+package com.kankaBot.kankaBot.dao.repository;
 
-import io.proj3ct.kankaBot.models.Ads;
+import com.kankaBot.kankaBot.models.Ads;
 import org.springframework.data.repository.CrudRepository;
 
 public interface AdsRepository extends CrudRepository<Ads, Long> {
