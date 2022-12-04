@@ -2,29 +2,20 @@ package com.kankaBot.kankaBot.service;
 
 import com.vdurmont.emoji.EmojiParser;
 import com.kankaBot.kankaBot.config.BotConfig;
-import com.kankaBot.kankaBot.models.Ads;
 import com.kankaBot.kankaBot.dao.repository.AdsRepository;
 import com.kankaBot.kankaBot.models.UserData.User;
 import com.kankaBot.kankaBot.dao.repository.UserRepository;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
-import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.sql.Timestamp;
 import java.util.*;
 
 @Slf4j
@@ -32,19 +23,19 @@ import java.util.*;
 public class TelegramBot extends TelegramLongPollingBot {
 
     private final UserRepository userRepository;
-    private final AdsRepository adsRepository;
+    private final BasicFunctional basicFunctional;
 
     final BotConfig config;
 
-    static final String HELP_TEXT = "Тут будет help текст";
-
     static final String YES_BUTTON = "YES_BUTTON";
     static final String NO_BUTTON = "NO_BUTTON";
+    static final String HELP_TEXT = "Тут будет help текст";
 
-    static final String ERROR_TEXT = "Error occurred: ";
 
-    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository) {
+
+    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, BasicFunctional basicFunctional) {
         this.config = config;
+        this.basicFunctional = basicFunctional;
         List<BotCommand> listofCommands = new ArrayList<>();
         listofCommands.add(new BotCommand("/start", "Начать общаться с ботом"));
         listofCommands.add(new BotCommand("/mydata", "Получить ваши данные из базы"));
@@ -56,7 +47,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             log.error("Error setting bot's command list: " + e.getMessage());
         }
-        this.adsRepository = adsRepository;
         this.userRepository = userRepository;
     }
 
@@ -81,29 +71,26 @@ public class TelegramBot extends TelegramLongPollingBot {
             if (messageText.contains("/send") && config.getOwnerId() == chatId) {
                 var textToSend = EmojiParser.parseToUnicode(messageText.substring(messageText.indexOf(" ")));
                 var users = userRepository.findAll();
+
                 for (User user : users) {
-                    prepareAndSendMessage(user.getChatId(), textToSend);
+                    basicFunctional.prepareAndSendMessage(user.getChatId(), textToSend);
                 }
             } else {
 
-
+                String anyMessage;
                 if ("/start".equals(messageText)) {
-                    registerUser(update.getMessage());
-                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                    basicFunctional.registerUser(update.getMessage());
+                    basicFunctional.startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
                 } else if ("/help".equals(messageText)) {
-                    prepareAndSendMessage(chatId, HELP_TEXT);
+                    basicFunctional.prepareAndSendMessage(chatId, HELP_TEXT);
                 } else if ("/register".equals(messageText) || "Регистрация".equals(messageText)) {
-                    register(chatId);
+                    basicFunctional.register(chatId);
                 } else if ("/mydata".equals(messageText) | "Показать ваши данные".equals(messageText)) {
-                    mydata(chatId);
+                    basicFunctional.mydata(chatId);
                 } else if ("/deletedata".equals(messageText) || "Удалить ваши данные".equals(messageText)) {
-                    deleteMyData(chatId);
+                    basicFunctional.deleteMyData(chatId);
                 } else if ("Получить случайный вопрос".equals(messageText)) {
-                    sendRandomQuestion();
-                } else {
-                    System.out.println("Ввел не то");
-                    sendMessage(chatId, "Такой команды нет, просьба ввести существующую");
-
+                    basicFunctional.startVictorine(chatId, "Тестирование началось");
                 }
             }
         } else if (update.hasCallbackQuery()) {
@@ -113,134 +100,18 @@ public class TelegramBot extends TelegramLongPollingBot {
 
 
             if (callbackData.equals(YES_BUTTON)) {
-                String text = "Вы успешно зарегистрированы";
-                registerUser(update.getCallbackQuery().getMessage());
-                executeEditMessageText(text, chatId, messageId);
+                basicFunctional.registerUser(update.getCallbackQuery().getMessage());
+                basicFunctional.executeEditMessageText("Вы успешно зарегистрированы", chatId, messageId);
 
             } else if (callbackData.equals(NO_BUTTON)) {
-                String s = update.getMessage().getText();
-                System.out.println(s);
-
+                basicFunctional.executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
+            } else if (callbackData.equals("/go")) {
+                basicFunctional.executeEditMessageText("Тестирование началось", chatId,messageId);
             }
         }
     }
 
-    private void sendMessage(long chatId, String textToSend) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(textToSend);
-
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
-
-        KeyboardRow row = new KeyboardRow();
-        row.add("Получить случайный вопрос");
-
-        keyboardRows.add(row);
-
-
-        row = new KeyboardRow();
-        row.add("Регистрация");
-        row.add("Показать ваши данные");
-        row.add("Удалить ваши данные");
-
-        keyboardRows.add(row);
-
-        keyboardMarkup.setKeyboard(keyboardRows);
-
-        message.setReplyMarkup(keyboardMarkup);
-
-        executeMessage(message);
-    }
-
-
-    private void mydata(long chatId) {
-        sendMessage(chatId, "Ваши личные данные");
-        StringBuilder readyMessageWithData = new StringBuilder();
-        List<String> dataList = new ArrayList<>();
-        Optional<User> userData = userRepository.findById(chatId);
-        dataList.add("Ваш username - " + userData.get().getUserName());
-        dataList.add("Ваше имя - " + userData.get().getFirstName());
-        dataList.add("Ваша фамилия - " + userData.get().getLastName());
-        dataList.add("Дата регистрации - " + userData.get().getRegisteredAt().toString());
-        dataList.add("Чат ID - " + userData.get().getChatId().toString());
-
-        for (String s : dataList) {
-            readyMessageWithData.append(s).append("\n");
-        }
-        sendMessage(chatId, readyMessageWithData.toString());
-
-
-    }
-
-    private void deleteMyData(long chatId) {
-        userRepository.deleteById(chatId);
-    }
-
-
-    private void sendRandomQuestion() {
-
-    }
-
-    private void register(long chatId) {
-
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Хотите ли выполнить регистрацию?");
-
-        InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
-        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-        var yesButton = new InlineKeyboardButton();
-
-        yesButton.setText("Регистрация автоматически");
-        yesButton.setCallbackData(YES_BUTTON);
-
-        var noButton = new InlineKeyboardButton();
-
-        noButton.setText("Регистрация вручную");
-        noButton.setCallbackData(NO_BUTTON);
-
-        rowInLine.add(yesButton);
-        rowInLine.add(noButton);
-
-        rowsInLine.add(rowInLine);
-
-        markupInLine.setKeyboard(rowsInLine);
-        message.setReplyMarkup(markupInLine);
-        executeMessage(message);
-    }
-
-    private void registerUser(Message msg) {
-
-        if (userRepository.findById(msg.getChatId()).isEmpty()) {
-
-            var chatId = msg.getChatId();
-            var chat = msg.getChat();
-
-            User user = new User();
-
-            user.setChatId(chatId);
-            user.setFirstName(chat.getFirstName());
-            user.setLastName(chat.getLastName());
-            user.setUserName(chat.getUserName());
-            user.setRegisteredAt(new Timestamp(System.currentTimeMillis()));
-
-            userRepository.save(user);
-            log.info("user saved: " + user);
-        }
-    }
-
-    private void startCommandReceived(long chatId, String name) {
-        String answer = EmojiParser.parseToUnicode("Эй, " + name + ", Привет))!" + " :expressionless:");
-        log.info("Replied to user " + name);
-
-        sendMessage(chatId, answer);
-    }
-
-
-    private void executeEditMessageText(String text, long chatId, long messageId) {
+    public void executeEditMessageText(String text, long chatId, long messageId) {
         EditMessageText message = new EditMessageText();
         message.setChatId(String.valueOf(chatId));
         message.setText(text);
@@ -249,36 +120,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         try {
             execute(message);
         } catch (TelegramApiException e) {
-            log.error(ERROR_TEXT + e.getMessage());
+
         }
     }
 
-    private void executeMessage(SendMessage message) {
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            log.error(ERROR_TEXT + e.getMessage());
-        }
-    }
 
-    private void prepareAndSendMessage(long chatId, String textToSend) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(textToSend);
-        executeMessage(message);
-    }
 
-    @Scheduled(cron = "${cron.scheduler}")
-    private void sendAds() {
 
-        var ads = adsRepository.findAll();
-        var users = userRepository.findAll();
 
-        for (Ads ad : ads) {
-            for (User user : users) {
-                prepareAndSendMessage(user.getChatId(), ad.getAd());
-            }
-        }
-
-    }
 }
