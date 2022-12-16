@@ -4,9 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.telegram.telegrambots.meta.api.objects.ChatPhoto;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Transient;
 import java.sql.Timestamp;
 
 @Getter
@@ -27,6 +29,9 @@ public class User {
 
     private Timestamp registeredAt;
 
+    @Transient
+    private ChatPhoto chatPhoto;
+
 
     @Override
     public String toString() {
@@ -36,6 +41,7 @@ public class User {
                 ", lastName='" + lastName + '\'' +
                 ", userName='" + userName + '\'' +
                 ", registeredAt=" + registeredAt +
+                ", chatPhoto=" + chatPhoto +
                 '}';
     }
 }

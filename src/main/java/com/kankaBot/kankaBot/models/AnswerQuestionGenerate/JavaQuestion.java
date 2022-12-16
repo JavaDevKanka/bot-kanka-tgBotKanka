@@ -8,7 +8,6 @@ import lombok.Setter;
 
 import javax.persistence.*;
 import java.util.List;
-import java.util.Set;
 
 @Getter
 @Setter
@@ -23,6 +22,8 @@ public class JavaQuestion {
 
     @Column(name = "question")
     private String question;
+
+    private Boolean is_multiAnswer;
 
     @OneToMany
     private List<AnswerVariables> answers;
