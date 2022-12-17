@@ -1,18 +1,19 @@
 package com.kankaBot.kankaBot.service;
 
-import com.kankaBot.kankaBot.models.Ads;
-import com.vdurmont.emoji.EmojiParser;
 import com.kankaBot.kankaBot.config.BotConfig;
 import com.kankaBot.kankaBot.dao.repository.AdsRepository;
-import com.kankaBot.kankaBot.models.UserData.User;
 import com.kankaBot.kankaBot.dao.repository.UserRepository;
+import com.kankaBot.kankaBot.models.Ads;
+import com.kankaBot.kankaBot.models.UserData.User;
+import com.kankaBot.kankaBot.service.abstracts.AnswerVariablesService;
+import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
+import com.vdurmont.emoji.EmojiParser;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
-import org.telegram.telegrambots.meta.api.methods.polls.SendPoll;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -37,7 +38,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final UserRepository userRepository;
     private final AdsRepository adsRepository;
 
-    private final QuestionGenerateService basicFunctional;
+    private final QuestionGenerateService questionGenerateService;
+    private final AnswerVariablesService answerVariablesService;
 
     final BotConfig config;
 
@@ -46,10 +48,11 @@ public class TelegramBot extends TelegramLongPollingBot {
     static final String HELP_TEXT = "Тут будет help текст";
     static final String ERROR_TEXT = "Error occurred: ";
 
-    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, QuestionGenerateService basicFunctional) {
+    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, QuestionGenerateService questionGenerateService, AnswerVariablesService answerVariablesService) {
         this.config = config;
         this.adsRepository = adsRepository;
-        this.basicFunctional = basicFunctional;
+        this.questionGenerateService = questionGenerateService;
+        this.answerVariablesService = answerVariablesService;
         List<BotCommand> listofCommands = new ArrayList<>();
         listofCommands.add(new BotCommand("/start", "Начать общаться с ботом"));
         listofCommands.add(new BotCommand("/mydata", "Получить ваши данные из базы"));
@@ -111,6 +114,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                     deleteMyData(chatId);
                 } else if ("Получить случайный вопрос".equals(messageText)) {
                     startVictorine(chatId);
+                } else if ("Создать вопрос".equals(messageText)) {
+                    menuCreateQuestion(chatId);
                 }
             }
         } else if (update.hasCallbackQuery()) {
@@ -126,31 +131,15 @@ public class TelegramBot extends TelegramLongPollingBot {
             } else if (callbackData.equals(NO_BUTTON)) {
                 executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
             } else if (callbackData.equals("/go")) {
-                sendRandomQuestion(chatId);
+                createQuestion(chatId, update);
+            } else if (callbackData.equals("bodyQuestion")) {
+                System.out.println("bodyquest");
             }
         }
     }
 
 
-    public void sendRandomQuestion(long chatId) throws TelegramApiException {
-        SendPoll sendPoll = new SendPoll();
-        sendPoll.setChatId(String.valueOf(chatId));
-        sendPoll.setQuestion("Вопрос");
-        sendPoll.setAllowMultipleAnswers(true);
-        sendPoll.setIsAnonymous(false);
-        List<String> list = new ArrayList<>();
-        list.add("Ответ1");
-        list.add("Ответ2");
-        list.add("Ответ3");
-        sendPoll.setOptions(list);
 
-        try {
-            execute(sendPoll);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
-
-    }
 
 
     public void executeEditMessageText(String text, long chatId, long messageId) {
@@ -174,9 +163,65 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    //        SendPoll sendPoll = new SendPoll();
+//        sendPoll.setChatId(String.valueOf(chatId));
+//        sendPoll.setQuestion("Вопрос");
+//        sendPoll.setAllowMultipleAnswers(true);
+//        sendPoll.setIsAnonymous(false);
+//        List<String> list = new ArrayList<>();
+//        list.add("Ответ1");
+//        list.add("Ответ2");
+//        list.add("Ответ3");
+//        list.add("Ответ3");
+//        list.add("Ответ3");
+//        list.add("Ответ3");
+//        list.add("Ответ3");
+//
+//        sendPoll.setOptions(list);
+//
+//        try {
+//            execute(sendPoll);
+//        } catch (TelegramApiException e) {
+//            e.printStackTrace();
+//        }
+//
+
+    public void createQuestion(long chatId, Update update) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("Введите вопрос");
+
+        if (update.hasCallbackQuery()) {
+            String question = update.getCallbackQuery().getMessage().getText();
+            System.out.println(question);
+        }
+    }
+
+    public void menuCreateQuestion(long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("Создание вопроса");
+
+        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
+        List<InlineKeyboardButton> firstRow = new ArrayList<>();
+
+        InlineKeyboardButton inlineKeyboardButton1 = new InlineKeyboardButton();
+        inlineKeyboardButton1.setText("Введите тело вопроса");
+        inlineKeyboardButton1.setCallbackData("/bodyQuestion");
+
+
+        firstRow.add(inlineKeyboardButton1);
+        rowsInLine.add(firstRow);
+
+        markupInline.setKeyboard(rowsInLine);
+        message.setReplyMarkup(markupInline);
+
+        executeMessage(message);
+    }
+
 
     public void startVictorine(long chatId) {
-
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText("Тестирование Java");
@@ -216,9 +261,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setReplyMarkup(markupInline);
 
         executeMessage(message);
-
-
-
     }
 
     public void register(long chatId) {
@@ -250,7 +292,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         executeMessage(message);
     }
 
-    public void sendMessage(long chatId, String textToSend) {
+    public void mainMenu(long chatId, String textToSend) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(textToSend);
@@ -289,7 +331,6 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     public void mydata(long chatId) {
-        sendMessage(chatId, "Ваши личные данные");
         StringBuilder readyMessageWithData = new StringBuilder();
         List<String> dataList = new ArrayList<>();
         Optional<User> userData = userRepository.findById(chatId);
@@ -299,14 +340,14 @@ public class TelegramBot extends TelegramLongPollingBot {
         dataList.add("Дата регистрации - " + userData.get().getRegisteredAt().toString());
         dataList.add("Чат ID - " + userData.get().getChatId().toString());
 
-
-
         System.out.println(userData);
-
         for (String s : dataList) {
             readyMessageWithData.append(s).append("\n");
         }
-        sendMessage(chatId, readyMessageWithData.toString());
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(readyMessageWithData.toString());
+        executeMessage(message);
     }
 
     public void registerUser(Message msg) {
@@ -345,7 +386,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         String answer = EmojiParser.parseToUnicode("Эй, " + name + ", Привет))!" + " :expressionless:");
         log.info("Replied to user " + name);
 
-        sendMessage(chatId, answer);
+        mainMenu(chatId, answer);
     }
 
     public void deleteMyData(long chatId) {

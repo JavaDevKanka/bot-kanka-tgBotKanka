@@ -1,35 +1,30 @@
 package com.kankaBot.kankaBot.models.AnswerQuestionGenerate;
 
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "java_question")
-public class JavaQuestion {
+@Table(name = "answer")
+public class Answer {
+
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "question")
-    private String question;
+    private String answer;
 
-    private Boolean is_multiAnswer;
-
-    @OneToMany
-    private List<AnswerVariables> answers;
-
-
-
-
-
+    @ManyToMany(mappedBy = "answers")
+    private Set<Question> questions = new HashSet<>();
 }

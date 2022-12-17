@@ -1,10 +1,15 @@
 package com.kankaBot.kankaBot.dao.abstracts;
 
-import com.kankaBot.kankaBot.models.AnswerQuestionGenerate.JavaQuestion;
+import com.kankaBot.kankaBot.models.AnswerQuestionGenerate.Answer;
+import com.kankaBot.kankaBot.models.AnswerQuestionGenerate.Question;
+import org.springframework.stereotype.Component;
 
-public interface QuestionGenerateDao extends ReadWriteDao<JavaQuestion, Long> {
+import java.util.Set;
 
-    void createQuestion(String question, String answer, Boolean is_multianswer);
+@Component
+public interface QuestionGenerateDao extends ReadWriteDao<Question, Long> {
+
+    void createQuestion(String question, Answer answers, Boolean is_multianswer);
 
 
 }
