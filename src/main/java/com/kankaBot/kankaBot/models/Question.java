@@ -1,4 +1,4 @@
-package com.kankaBot.kankaBot.models.AnswerQuestionGenerate;
+package com.kankaBot.kankaBot.models;
 
 
 import lombok.AllArgsConstructor;

@@ -1,7 +1,6 @@
 package com.kankaBot.kankaBot.service.abstracts;
 
-import com.kankaBot.kankaBot.dao.service.abstracts.ReadWriteService;
-import com.kankaBot.kankaBot.models.AnswerQuestionGenerate.Answer;
+import com.kankaBot.kankaBot.models.Answer;
 import org.springframework.stereotype.Service;
 
 @Service

@@ -1,4 +1,4 @@
-package com.kankaBot.kankaBot.dao.service.abstracts;
+package com.kankaBot.kankaBot.service.abstracts;
 
 import java.util.Collection;
 

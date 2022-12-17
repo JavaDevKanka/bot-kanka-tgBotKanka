@@ -1,7 +1,7 @@
-package com.kankaBot.kankaBot.dao.service.model;
+package com.kankaBot.kankaBot.service.impl;
 
 import com.kankaBot.kankaBot.dao.abstracts.ReadOnlyDao;
-import com.kankaBot.kankaBot.dao.service.abstracts.ReadOnlyService;
+import com.kankaBot.kankaBot.service.abstracts.ReadOnlyService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;

@@ -4,7 +4,7 @@ import com.kankaBot.kankaBot.config.BotConfig;
 import com.kankaBot.kankaBot.dao.repository.AdsRepository;
 import com.kankaBot.kankaBot.dao.repository.UserRepository;
 import com.kankaBot.kankaBot.models.Ads;
-import com.kankaBot.kankaBot.models.UserData.User;
+import com.kankaBot.kankaBot.models.User;
 import com.kankaBot.kankaBot.service.abstracts.AnswerVariablesService;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
 import com.vdurmont.emoji.EmojiParser;
@@ -78,13 +78,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         return config.getToken();
     }
 
-    public Message getTextFromMessage(Update update) {
-        Message m = new Message();
-        m = update.getMessage();
-        return m;
-    }
-
-
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
@@ -103,7 +96,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                 if ("/start".equals(messageText)) {
                     registerUser(update.getMessage());
-                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                    mainMenu(chatId);
                 } else if ("/help".equals(messageText)) {
                     prepareAndSendMessage(chatId, HELP_TEXT);
                 } else if ("/register".equals(messageText) || "Регистрация".equals(messageText)) {
@@ -119,27 +112,29 @@ public class TelegramBot extends TelegramLongPollingBot {
                 }
             }
         } else if (update.hasCallbackQuery()) {
-            String callbackData = update.getCallbackQuery().getData();
-            long messageId = update.getCallbackQuery().getMessage().getMessageId();
-            long chatId = update.getCallbackQuery().getMessage().getChatId();
-
-
-            if (callbackData.equals(YES_BUTTON)) {
-                registerUser(update.getCallbackQuery().getMessage());
-                executeEditMessageText("Вы успешно зарегистрированы", chatId, messageId);
-
-            } else if (callbackData.equals(NO_BUTTON)) {
-                executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
-            } else if (callbackData.equals("/go")) {
-                createQuestion(chatId, update);
-            } else if (callbackData.equals("bodyQuestion")) {
-                System.out.println("bodyquest");
-            }
+            callbackData(update);
         }
     }
 
 
+    public void callbackData(Update update) {
+        String callbackData = update.getCallbackQuery().getData();
+        long messageId = update.getCallbackQuery().getMessage().getMessageId();
+        long chatId = update.getCallbackQuery().getMessage().getChatId();
 
+
+        if (callbackData.equals(YES_BUTTON)) {
+            registerUser(update.getCallbackQuery().getMessage());
+            executeEditMessageText("Вы успешно зарегистрированы", chatId, messageId);
+
+        } else if (callbackData.equals(NO_BUTTON)) {
+            executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
+        } else if (callbackData.equals("/go")) {
+            createQuestion(chatId, update);
+        } else if (callbackData.equals("bodyQuestion")) {
+            System.out.println("bodyquest");
+        }
+    }
 
 
     public void executeEditMessageText(String text, long chatId, long messageId) {
@@ -292,10 +287,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         executeMessage(message);
     }
 
-    public void mainMenu(long chatId, String textToSend) {
+    public void mainMenu(long chatId) {
+
+        String answer = EmojiParser.parseToUnicode("Привет ^_^");
+
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText(textToSend);
+        message.setText(answer);
 
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         keyboardMarkup.setResizeKeyboard(true);
@@ -382,12 +380,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    public void startCommandReceived(long chatId, String name) {
-        String answer = EmojiParser.parseToUnicode("Эй, " + name + ", Привет))!" + " :expressionless:");
-        log.info("Replied to user " + name);
-
-        mainMenu(chatId, answer);
-    }
 
     public void deleteMyData(long chatId) {
         userRepository.deleteById(chatId);
