@@ -27,9 +27,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -55,6 +53,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         this.answerVariablesService = answerVariablesService;
         List<BotCommand> listofCommands = new ArrayList<>();
         listofCommands.add(new BotCommand("/start", "Начать общаться с ботом"));
+        listofCommands.add(new BotCommand("/registration", "Регистрация"));
         listofCommands.add(new BotCommand("/mydata", "Получить ваши данные из базы"));
         listofCommands.add(new BotCommand("/deletedata", "Удалить ваши данные из базы"));
         listofCommands.add(new BotCommand("/help", "Информация по использованию бота"));
@@ -94,23 +93,28 @@ public class TelegramBot extends TelegramLongPollingBot {
                 }
             } else {
 
-                if ("/start".equals(messageText)) {
-                    registerUser(update.getMessage());
-                    mainMenu(chatId);
-                } else if ("/help".equals(messageText)) {
-                    prepareAndSendMessage(chatId, HELP_TEXT);
-                } else if ("/register".equals(messageText) || "Регистрация".equals(messageText)) {
-                    register(chatId);
-                } else if ("/mydata".equals(messageText) | "Показать ваши данные".equals(messageText)) {
-                    mydata(chatId);
-                } else if ("/deletedata".equals(messageText) || "Удалить ваши данные".equals(messageText)) {
-                    deleteMyData(chatId);
-                } else if ("Получить случайный вопрос".equals(messageText)) {
-                    startVictorine(chatId);
-                } else if ("Создать вопрос".equals(messageText)) {
-                    menuCreateQuestion(chatId);
-                }
+                Map<String, Runnable> commands = new HashMap<>();
+                commands.put("/start", () -> mainMenu(chatId));
+
+                commands.put("/registration", () -> register(chatId));
+                commands.put("Регистрация", () -> register(chatId));
+
+                commands.put("/mydata", () -> mydata(chatId));
+                commands.put("Показать ваши данные", () -> mydata(chatId));
+
+                commands.put("/deletedata", () -> deleteMyData(chatId));
+                commands.put("Удалить ваши данные", () -> deleteMyData(chatId));
+
+                commands.put("/help", () -> otpravkaMessage(chatId, HELP_TEXT));
+
+                commands.put("Получить случайный вопрос", () -> createQuestion(chatId, update));
+
+                commands.put("create", () -> menuCreateQuestion(chatId));
+
+                commands.get(messageText).run();
             }
+
+
         } else if (update.hasCallbackQuery()) {
             callbackData(update);
         }
@@ -131,8 +135,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
         } else if (callbackData.equals("/go")) {
             createQuestion(chatId, update);
-        } else if (callbackData.equals("bodyQuestion")) {
-            System.out.println("bodyquest");
+        } else if (callbackData.equals("/bodyQuestion")) {
+            System.out.println("/bodyQuestion");
         }
     }
 
@@ -288,12 +292,9 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     public void mainMenu(long chatId) {
-
-        String answer = EmojiParser.parseToUnicode("Привет ^_^");
-
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText(answer);
+        message.setText("Привет ^_^");
 
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         keyboardMarkup.setResizeKeyboard(true);
@@ -329,23 +330,24 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     public void mydata(long chatId) {
-        StringBuilder readyMessageWithData = new StringBuilder();
         List<String> dataList = new ArrayList<>();
         Optional<User> userData = userRepository.findById(chatId);
+
         dataList.add("Ваш username - " + userData.get().getUserName());
         dataList.add("Ваше имя - " + userData.get().getFirstName());
         dataList.add("Ваша фамилия - " + userData.get().getLastName());
         dataList.add("Дата регистрации - " + userData.get().getRegisteredAt().toString());
         dataList.add("Чат ID - " + userData.get().getChatId().toString());
 
-        System.out.println(userData);
-        for (String s : dataList) {
-            readyMessageWithData.append(s).append("\n");
-        }
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText(readyMessageWithData.toString());
-        executeMessage(message);
+
+        for (String s : dataList) {
+            message.setText(s);
+            executeMessage(message);
+        }
+
+
     }
 
     public void registerUser(Message msg) {
@@ -382,7 +384,15 @@ public class TelegramBot extends TelegramLongPollingBot {
 
 
     public void deleteMyData(long chatId) {
+        otpravkaMessage(chatId, "Данные удалены из БД");
         userRepository.deleteById(chatId);
+    }
+
+    public void otpravkaMessage(Long chatId, String textMessage) {
+        SendMessage message = new SendMessage();
+        message.setText(textMessage);
+        message.setChatId(String.valueOf(chatId));
+        executeMessage(message);
     }
 
 }
