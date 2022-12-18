@@ -25,6 +25,8 @@ public class Answer {
 
     private String answer;
 
+    private Long messageId;
+
     @ManyToMany(mappedBy = "answers")
     private Set<Question> questions = new HashSet<>();
 }

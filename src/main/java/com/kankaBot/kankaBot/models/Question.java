@@ -24,6 +24,8 @@ public class Question {
 
     private String question;
 
+    private Long messageId;
+
     private Boolean is_multiAnswer;
 
     @ManyToMany(cascade = { CascadeType.ALL })

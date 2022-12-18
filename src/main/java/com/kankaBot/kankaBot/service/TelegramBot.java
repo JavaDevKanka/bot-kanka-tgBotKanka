@@ -11,6 +11,7 @@ import com.kankaBot.kankaBot.service.abstracts.AnswerVariablesService;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -216,20 +217,31 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @SneakyThrows
     public void saveQuestion(Long chatId) {
+
+        Answer answer = new Answer();
+        Set<Answer> answers = new LinkedHashSet<>();
+
+
         Question question = new Question();
         for (Message m : messageHandler) {
 
             if (m.getText().startsWith("qes") & !m.getText().isEmpty()) {
                 question.setQuestion(m.getText().substring(3));
                 question.setIs_multiAnswer(false);
+                question.setMessageId(Long.valueOf(m.getMessageId()) );
+
+                question.setAnswers(answers);
+
                 questionGenerateService.persist(question);
                 prepareAndSendMessage(chatId, "Вопрос сохранен в БД");
                 messageHandler.clear();
             } else {
-                prepareAndSendMessage(chatId, "Это не вопрос");
+                log.info("Сообщение не является вопросом");
             }
         }
-    }
+}
+
+
 
     public void startVictorine(long chatId) {
         SendMessage message = new SendMessage();
