@@ -7,7 +7,6 @@ import com.kankaBot.kankaBot.models.Ads;
 import com.kankaBot.kankaBot.models.User;
 import com.kankaBot.kankaBot.service.abstracts.AnswerVariablesService;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
-import com.vdurmont.emoji.EmojiParser;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,10 +15,13 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ForceReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -38,6 +40,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private final QuestionGenerateService questionGenerateService;
     private final AnswerVariablesService answerVariablesService;
+
 
     final BotConfig config;
 
@@ -77,51 +80,53 @@ public class TelegramBot extends TelegramLongPollingBot {
         return config.getToken();
     }
 
-    @SneakyThrows
+
+
     @Override
+    @SneakyThrows
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            String messageText = update.getMessage().getText();
-            long chatId = update.getMessage().getChatId();
-
-            if (messageText.contains("/send") && config.getOwnerId() == chatId) {
-                var textToSend = EmojiParser.parseToUnicode(messageText.substring(messageText.indexOf(" ")));
-                var users = userRepository.findAll();
-
-                for (User user : users) {
-                    prepareAndSendMessage(user.getChatId(), textToSend);
-                }
-            } else {
-
-                Map<String, Runnable> commands = new HashMap<>();
-                commands.put("/start", () -> mainMenu(chatId));
-
-                commands.put("/registration", () -> register(chatId));
-                commands.put("Регистрация", () -> register(chatId));
-
-                commands.put("/mydata", () -> mydata(chatId));
-                commands.put("Показать ваши данные", () -> mydata(chatId));
-
-                commands.put("/deletedata", () -> deleteMyData(chatId));
-                commands.put("Удалить ваши данные", () -> deleteMyData(chatId));
-
-                commands.put("/help", () -> otpravkaMessage(chatId, HELP_TEXT));
-
-                commands.put("Получить случайный вопрос", () -> createQuestion(chatId, update));
-
-                commands.put("create", () -> menuCreateQuestion(chatId));
-
-                commands.get(messageText).run();
-            }
-
-
-        } else if (update.hasCallbackQuery()) {
-            callbackData(update);
+        if (update.hasCallbackQuery()) {
+            handleCallback(update);
+        } else if (update.hasMessage()) {
+            handleMessage(update.getMessage());
         }
     }
 
 
-    public void callbackData(Update update) {
+    @SneakyThrows
+    private void handleMessage(Message message) {
+        if (message.hasText()) {
+            String messageText = message.getText();
+            long chatId = message.getChatId();
+
+            Map<String, Runnable> commands = new HashMap<>();
+            commands.put("/start", () -> mainMenu(chatId));
+
+            commands.put("/registration", () -> register(chatId));
+            commands.put("Регистрация", () -> register(chatId));
+
+            commands.put("/mydata", () -> mydata(chatId));
+            commands.put("Показать ваши данные", () -> mydata(chatId));
+
+            commands.put("/deletedata", () -> deleteMyData(chatId));
+            commands.put("Удалить ваши данные", () -> deleteMyData(chatId));
+
+            commands.put("/help", () -> prepareAndSendMessage(chatId, HELP_TEXT));
+
+            commands.put("Получить случайный вопрос", () -> createQuestion(chatId));
+
+            commands.put("create", () -> createQuestion(chatId));
+
+            if (message.isUserMessage() & commands.containsKey(message.getText())) {
+                commands.get(messageText).run();
+            } else {
+                prepareAndSendMessage(chatId, messageText);
+            }
+        }
+    }
+
+
+    public void handleCallback(Update update) {
         String callbackData = update.getCallbackQuery().getData();
         long messageId = update.getCallbackQuery().getMessage().getMessageId();
         long chatId = update.getCallbackQuery().getMessage().getChatId();
@@ -134,11 +139,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         } else if (callbackData.equals(NO_BUTTON)) {
             executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
         } else if (callbackData.equals("/go")) {
-            createQuestion(chatId, update);
-        } else if (callbackData.equals("/bodyQuestion")) {
-            System.out.println("/bodyQuestion");
+            createQuestion(chatId);
+        } else if (callbackData.equals("/question")) {
+            createQuestion(chatId);
         }
     }
+
+
 
 
     public void executeEditMessageText(String text, long chatId, long messageId) {
@@ -185,37 +192,22 @@ public class TelegramBot extends TelegramLongPollingBot {
 //        }
 //
 
-    public void createQuestion(long chatId, Update update) {
+    public void createQuestion(long chatId) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(String.valueOf(chatId));
+
+        sendMessage.setText("Введите вопрос ");
+        ForceReplyKeyboard forceReplyKeyboard = new ForceReplyKeyboard();
+        forceReplyKeyboard.setForceReply(true);
+        forceReplyKeyboard.setInputFieldPlaceholder("Введите вопрос сюда");
+
+        sendMessage.setReplyMarkup(forceReplyKeyboard);
+        executeMessage(sendMessage);
+
+        Update update = new Update();
+
         SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Введите вопрос");
-
-        if (update.hasCallbackQuery()) {
-            String question = update.getCallbackQuery().getMessage().getText();
-            System.out.println(question);
-        }
-    }
-
-    public void menuCreateQuestion(long chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Создание вопроса");
-
-        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
-        List<InlineKeyboardButton> firstRow = new ArrayList<>();
-
-        InlineKeyboardButton inlineKeyboardButton1 = new InlineKeyboardButton();
-        inlineKeyboardButton1.setText("Введите тело вопроса");
-        inlineKeyboardButton1.setCallbackData("/bodyQuestion");
-
-
-        firstRow.add(inlineKeyboardButton1);
-        rowsInLine.add(firstRow);
-
-        markupInline.setKeyboard(rowsInLine);
-        message.setReplyMarkup(markupInline);
-
+        message.setText(update.getMessage().getText());
         executeMessage(message);
     }
 
@@ -301,11 +293,14 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         List<KeyboardRow> keyboardRows = new ArrayList<>();
 
+        InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
+        inlineKeyboardButton.setCallbackData("/createQuestion");
+
         KeyboardRow row = new KeyboardRow();
         row.add("Получить случайный вопрос");
 
-        keyboardRows.add(row);
 
+        keyboardRows.add(row);
 
         row = new KeyboardRow();
         row.add("Регистрация");
@@ -315,6 +310,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         keyboardRows.add(row);
 
         keyboardMarkup.setKeyboard(keyboardRows);
+        keyboardMarkup.setInputFieldPlaceholder("Введите");
 
         message.setReplyMarkup(keyboardMarkup);
 
@@ -384,15 +380,9 @@ public class TelegramBot extends TelegramLongPollingBot {
 
 
     public void deleteMyData(long chatId) {
-        otpravkaMessage(chatId, "Данные удалены из БД");
+        prepareAndSendMessage(chatId, "Данные удалены из БД");
         userRepository.deleteById(chatId);
     }
 
-    public void otpravkaMessage(Long chatId, String textMessage) {
-        SendMessage message = new SendMessage();
-        message.setText(textMessage);
-        message.setChatId(String.valueOf(chatId));
-        executeMessage(message);
-    }
 
 }
