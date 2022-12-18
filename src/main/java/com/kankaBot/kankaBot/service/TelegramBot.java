@@ -4,6 +4,8 @@ import com.kankaBot.kankaBot.config.BotConfig;
 import com.kankaBot.kankaBot.dao.repository.AdsRepository;
 import com.kankaBot.kankaBot.dao.repository.UserRepository;
 import com.kankaBot.kankaBot.models.Ads;
+import com.kankaBot.kankaBot.models.Answer;
+import com.kankaBot.kankaBot.models.Question;
 import com.kankaBot.kankaBot.models.User;
 import com.kankaBot.kankaBot.service.abstracts.AnswerVariablesService;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
@@ -15,9 +17,7 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
@@ -48,6 +48,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     static final String NO_BUTTON = "NO_BUTTON";
     static final String HELP_TEXT = "Тут будет help текст";
     static final String ERROR_TEXT = "Error occurred: ";
+
 
     public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, QuestionGenerateService questionGenerateService, AnswerVariablesService answerVariablesService) {
         this.config = config;
@@ -81,23 +82,16 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
 
+    List<Message> messageHandler = new ArrayList<>();
 
     @Override
     @SneakyThrows
     public void onUpdateReceived(Update update) {
         if (update.hasCallbackQuery()) {
             handleCallback(update);
-        } else if (update.hasMessage()) {
-            handleMessage(update.getMessage());
-        }
-    }
-
-
-    @SneakyThrows
-    private void handleMessage(Message message) {
-        if (message.hasText()) {
-            String messageText = message.getText();
-            long chatId = message.getChatId();
+        } else if (update.hasMessage() & update.getMessage().hasText()) {
+            String messageText = update.getMessage().getText();
+            long chatId = update.getMessage().getChatId();
 
             Map<String, Runnable> commands = new HashMap<>();
             commands.put("/start", () -> mainMenu(chatId));
@@ -113,14 +107,15 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             commands.put("/help", () -> prepareAndSendMessage(chatId, HELP_TEXT));
 
-            commands.put("Получить случайный вопрос", () -> createQuestion(chatId));
+            commands.put("Получить случайный вопрос", () -> createQuestion(chatId, update));
 
-            commands.put("create", () -> createQuestion(chatId));
+            commands.put("create", () -> createQuestion(chatId, update));
 
-            if (message.isUserMessage() & commands.containsKey(message.getText())) {
+
+            if (update.getMessage().isUserMessage() & commands.containsKey(update.getMessage().getText())) {
                 commands.get(messageText).run();
             } else {
-                prepareAndSendMessage(chatId, messageText);
+                messageHandler.add(update.getMessage());
             }
         }
     }
@@ -131,21 +126,18 @@ public class TelegramBot extends TelegramLongPollingBot {
         long messageId = update.getCallbackQuery().getMessage().getMessageId();
         long chatId = update.getCallbackQuery().getMessage().getChatId();
 
-
         if (callbackData.equals(YES_BUTTON)) {
             registerUser(update.getCallbackQuery().getMessage());
             executeEditMessageText("Вы успешно зарегистрированы", chatId, messageId);
-
         } else if (callbackData.equals(NO_BUTTON)) {
             executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
-        } else if (callbackData.equals("/go")) {
-            createQuestion(chatId);
-        } else if (callbackData.equals("/question")) {
-            createQuestion(chatId);
+        } else if (callbackData.equals("/saveQuestion")) {
+            saveQuestion(chatId, update);
+        } else if (callbackData.equals("/saveNot")) {
+            log.info("Вопрос не сохранен");
+            prepareAndSendMessage(chatId, "Вопрос не сохранен");
         }
     }
-
-
 
 
     public void executeEditMessageText(String text, long chatId, long messageId) {
@@ -192,25 +184,52 @@ public class TelegramBot extends TelegramLongPollingBot {
 //        }
 //
 
-    public void createQuestion(long chatId) {
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(String.valueOf(chatId));
-
-        sendMessage.setText("Введите вопрос ");
-        ForceReplyKeyboard forceReplyKeyboard = new ForceReplyKeyboard();
-        forceReplyKeyboard.setForceReply(true);
-        forceReplyKeyboard.setInputFieldPlaceholder("Введите вопрос сюда");
-
-        sendMessage.setReplyMarkup(forceReplyKeyboard);
-        executeMessage(sendMessage);
-
-        Update update = new Update();
-
+    public void createQuestion(long chatId, Update update) {
         SendMessage message = new SendMessage();
-        message.setText(update.getMessage().getText());
+        message.setChatId(String.valueOf(chatId));
+        message.setText("Введите вопрос (начиная с \"qes\"), а затем нажмите \"Сохранить\" ");
+
+        InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
+        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+        var yesButton = new InlineKeyboardButton();
+
+
+        yesButton.setText("Сохранить");
+        yesButton.setCallbackData("/saveQuestion");
+
+        var noButton = new InlineKeyboardButton();
+
+        noButton.setText("Не сохранять");
+        noButton.setCallbackData("/saveNot");
+
+        rowInLine.add(yesButton);
+        rowInLine.add(noButton);
+
+        rowsInLine.add(rowInLine);
+
+        markupInLine.setKeyboard(rowsInLine);
+        message.setReplyMarkup(markupInLine);
         executeMessage(message);
+
     }
 
+    public void saveQuestion(Long chatId, Update update) {
+        Question question = new Question();
+        for (Message m : messageHandler) {
+            if (m.getText().startsWith("qes")) {
+                question.setQuestion(m.getText().substring(3));
+                question.setIs_multiAnswer(false);
+                questionGenerateService.persist(question);
+                prepareAndSendMessage(chatId, "Вопрос сохранен в БД");
+                messageHandler.clear();
+            } else {
+                prepareAndSendMessage(chatId, "Это не вопрос");
+                messageHandler.clear();
+                createQuestion(chatId, update);
+            }
+        }
+    }
 
     public void startVictorine(long chatId) {
         SendMessage message = new SendMessage();
@@ -286,12 +305,13 @@ public class TelegramBot extends TelegramLongPollingBot {
     public void mainMenu(long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("Привет ^_^");
+        message.setText("Главное меню");
 
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         keyboardMarkup.setResizeKeyboard(true);
 
         List<KeyboardRow> keyboardRows = new ArrayList<>();
+
 
         InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
         inlineKeyboardButton.setCallbackData("/createQuestion");
