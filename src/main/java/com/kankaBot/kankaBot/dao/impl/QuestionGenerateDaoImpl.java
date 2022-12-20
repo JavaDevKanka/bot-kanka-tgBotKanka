@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import java.util.List;
 
 @Component
 public class QuestionGenerateDaoImpl extends ReadWriteDaoImpl<Question, Long> implements QuestionGenerateDao {
@@ -16,6 +17,11 @@ public class QuestionGenerateDaoImpl extends ReadWriteDaoImpl<Question, Long> im
 
     @Override
     public void createQuestion(String question, Answer answers, Boolean is_multianswer) {
+    }
 
+    @Override
+    public List<Long> listIdQuestions() {
+        return entityManager.createQuery("select id from Question", Long.class)
+                .getResultList();
     }
 }

@@ -6,6 +6,8 @@ import com.kankaBot.kankaBot.models.Question;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class QuestionGenerateServiceImpl extends ReadWriteServiceImpl<Question, Long> implements QuestionGenerateService {
 
@@ -20,6 +22,10 @@ public class QuestionGenerateServiceImpl extends ReadWriteServiceImpl<Question, 
     public void createQuestion(String question, Answer answers, Boolean is_multianswer) {
 
    }
+
+    public List<Long> listIdQuestions() {
+        return questionGenerateDao.listIdQuestions();
+    }
 
 
 }

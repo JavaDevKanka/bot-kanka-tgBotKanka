@@ -6,28 +6,22 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.util.HashSet;
-import java.util.Set;
-
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "answer")
-public class Answer {
-
+@Table(name = "statistics")
+public class Statistics {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
-    private String answer;
+    private Long user;
 
-    private Boolean is_right;
+    private Long chatId;
 
-    @ManyToOne
-    @JoinColumn(name = "question_id")
-    private Question question;
+    private Long correctAnswers;
 }
