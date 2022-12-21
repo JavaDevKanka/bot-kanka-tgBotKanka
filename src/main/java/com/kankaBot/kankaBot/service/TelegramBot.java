@@ -96,6 +96,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             Long chatUserId = pollAnswer.getUser().getId();
             List<Integer> optionIds = pollAnswer.getOptionIds();
             setStatisticsFromQuiz(pollId, chatUserId, optionIds);
+
         } else if (update.getMessage().hasText()) {
 
             String messageText = update.getMessage().getText();
@@ -119,10 +120,9 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             commands.put("create", () -> createQuestion(chatId));
 
-            if (update.getMessage().isUserMessage() & commands.containsKey(update.getMessage().getText())) {
+            if (commands.containsKey(update.getMessage().getText())) {
                 commands.get(messageText).run();
             } else {
-
                 messagesBuffer.setMessage(update.getMessage().getText());
                 messagesBuffer.setChatId(update.getMessage().getChatId());
                 messagesBuffer.setMessageId(Long.valueOf(update.getMessage().getMessageId()));
@@ -157,33 +157,11 @@ public class TelegramBot extends TelegramLongPollingBot {
             executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
         } else if (callbackData.equals("/saveQuestion") && !messagesBufferService.getAll().isEmpty()) {
             saveQuestion(chatId);
-            messagesBufferService.deleteAll(messagesBufferService.getAll());
-        } else if (callbackData.equals("/saveNot") && !messagesBufferService.getAll().isEmpty()) {
+        } else if (callbackData.equals("/saveNot")) {
             prepareAndSendMessage(chatId, "Вопрос не сохранен");
             messagesBufferService.deleteAll(messagesBufferService.getAll());
         }
 
-    }
-
-    public void executeEditMessageText(String text, long chatId, long messageId) {
-        EditMessageText message = new EditMessageText();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(text);
-        message.setMessageId((int) messageId);
-
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            log.error(ERROR_TEXT + e.getMessage());
-        }
-    }
-
-    public void executeMessage(SendMessage message) {
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            log.error(ERROR_TEXT + e.getMessage());
-        }
     }
 
     public void getQuestion(Long chatId) {
@@ -210,6 +188,79 @@ public class TelegramBot extends TelegramLongPollingBot {
             execute(sendPoll);
         } catch (TelegramApiException e) {
             e.printStackTrace();
+        }
+    }
+
+    @SneakyThrows
+    public void saveQuestion(Long chatId) {
+        List<String> listBuffer = new ArrayList<>(messagesBufferService.answerList());
+        messagesBufferService.deleteAll(messagesBufferService.getAll());
+        Set<Answer> answers = new HashSet<>();
+        Question question = new Question();
+        for (String buffer : listBuffer) {
+            if (buffer.startsWith("!q")) {
+                question.setQuestion(buffer.substring(2));
+                if (buffer.contains("*")) {
+                    question.setExplanation(buffer.substring(buffer.indexOf("*") + 1));
+                    question.setQuestion(buffer.substring(buffer.indexOf("!q") + 2, buffer.indexOf("*")));
+                }
+            } else if (buffer.startsWith("!a")) {
+                Answer answer = new Answer();
+                answer.setAnswer(buffer.substring(2));
+                if (buffer.contains("!r")) {
+                    answer.setIs_right(true);
+                    answer.setAnswer(buffer.substring(buffer.indexOf("!a") + 2, buffer.indexOf("!r")));
+                } else {
+                    answer.setIs_right(false);
+                }
+                answers.add(answer);
+            }
+        }
+        if (answers.size() < 2 | answers.size() > 10) {
+            messagesBufferService.deleteAll(messagesBufferService.getAll());
+            prepareAndSendMessage(chatId, "Ответов меньше 2 или больше 10, буфер очищен, введите заново");
+        } else {
+            int count = 0;
+            for (Answer answer : answers) {
+                if (answer.getIs_right().equals(true)) {
+                    count++;
+                }
+            }
+            if (count > 1 | count < 1) {
+                prepareAndSendMessage(chatId, "Правильный ответ должен быть только один, буфер очищен");
+                messagesBufferService.deleteAll(messagesBufferService.getAll());
+            } else {
+                question.setAnswers(answers);
+            }
+        }
+        if (question.getQuestion().isEmpty()) {
+            prepareAndSendMessage(chatId, "Вопрос пуст, буфер очищен, введите вопрос и ответы заново");
+            messagesBufferService.deleteAll(messagesBufferService.getAll());
+        } else {
+            questionGenerateService.persist(question);
+            prepareAndSendMessage(chatId, "Вопрос добавлен!");
+            messagesBufferService.deleteAll(messagesBufferService.getAll());
+        }
+    }
+
+    public void executeEditMessageText(String text, long chatId, long messageId) {
+        EditMessageText message = new EditMessageText();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(text);
+        message.setMessageId((int) messageId);
+
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            log.error(ERROR_TEXT + e.getMessage());
+        }
+    }
+
+    public void executeMessage(SendMessage message) {
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            log.error(ERROR_TEXT + e.getMessage());
         }
     }
 
@@ -244,56 +295,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setReplyMarkup(markupInLine);
         executeMessage(message);
 
-    }
-
-    @SneakyThrows
-    public void saveQuestion(Long chatId) {
-        List<String> listBuffer = new ArrayList<>(messagesBufferService.answerList());
-
-        for (String m : listBuffer) {
-            if (m.startsWith("!q") & !m.isEmpty()) {
-                Question question = new Question();
-                if (m.contains("*")) {
-                    question.setExplanation(m.substring(m.indexOf('*') + 1));
-                }
-                Set<Answer> answers = new HashSet<>();
-                for (String answersvar : listBuffer) {
-                    if (answersvar.startsWith("!a")) {
-                        Answer answer = new Answer();
-
-                        if (answersvar.contains("!r")) {
-                            answer.setIs_right(true);
-                        } else {
-                            messagesBufferService.deleteAll(messagesBufferService.getAll());
-                            prepareAndSendMessage(chatId, "Не указан правильный ответ!");
-                        }
-                        answer.setAnswer(answersvar.substring(2).replace("!r", ""));
-                        answers.add(answer);
-                    }
-                }
-                question.setAnswers(answers);
-                if (answers.size() >= 2 & answers.size() <= 10) {
-                    if (m.contains("!q")) {
-                        question.setQuestion(m.substring(2));
-                    } else {
-                        messagesBufferService.deleteAll(messagesBufferService.getAll());
-                        prepareAndSendMessage(chatId, "Вопрос не введен, Буфер очищен.");
-                        break;
-                    }
-                    questionGenerateService.persist(question);
-                    prepareAndSendMessage(chatId, "Вопрос сохранен в БД");
-                } else {
-                    messagesBufferService.deleteAll(messagesBufferService.getAll());
-                    prepareAndSendMessage(chatId, "Количество вопросов меньше 2 или больше 10, введите вопрос и ответы заново");
-                    break;
-
-                }
-            } else {
-                messagesBufferService.deleteAll(messagesBufferService.getAll());
-                prepareAndSendMessage(chatId, "Вопрос не добавлен!");
-                break;
-            }
-        }
     }
 
 
