@@ -3,23 +3,24 @@ package com.kankaBot.kankaBot.service;
 import com.kankaBot.kankaBot.config.BotConfig;
 import com.kankaBot.kankaBot.dao.repository.AdsRepository;
 import com.kankaBot.kankaBot.dao.repository.UserRepository;
-import com.kankaBot.kankaBot.models.Ads;
-import com.kankaBot.kankaBot.models.UserData.User;
+import com.kankaBot.kankaBot.models.*;
 import com.kankaBot.kankaBot.service.abstracts.AnswerVariablesService;
+import com.kankaBot.kankaBot.service.abstracts.MessagesBufferService;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
-import com.vdurmont.emoji.EmojiParser;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.methods.polls.SendPoll;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.polls.PollAnswer;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -27,9 +28,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -41,6 +40,9 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final QuestionGenerateService questionGenerateService;
     private final AnswerVariablesService answerVariablesService;
 
+    private final MessagesBufferService messagesBufferService;
+
+
     final BotConfig config;
 
     static final String YES_BUTTON = "YES_BUTTON";
@@ -48,13 +50,16 @@ public class TelegramBot extends TelegramLongPollingBot {
     static final String HELP_TEXT = "Тут будет help текст";
     static final String ERROR_TEXT = "Error occurred: ";
 
-    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, QuestionGenerateService questionGenerateService, AnswerVariablesService answerVariablesService) {
+
+    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, QuestionGenerateService questionGenerateService, AnswerVariablesService answerVariablesService, MessagesBufferService messagesBufferService) {
         this.config = config;
         this.adsRepository = adsRepository;
         this.questionGenerateService = questionGenerateService;
         this.answerVariablesService = answerVariablesService;
+        this.messagesBufferService = messagesBufferService;
         List<BotCommand> listofCommands = new ArrayList<>();
         listofCommands.add(new BotCommand("/start", "Начать общаться с ботом"));
+        listofCommands.add(new BotCommand("/registration", "Регистрация"));
         listofCommands.add(new BotCommand("/mydata", "Получить ваши данные из базы"));
         listofCommands.add(new BotCommand("/deletedata", "Удалить ваши данные из базы"));
         listofCommands.add(new BotCommand("/help", "Информация по использованию бота"));
@@ -78,69 +83,87 @@ public class TelegramBot extends TelegramLongPollingBot {
         return config.getToken();
     }
 
-    public Message getTextFromMessage(Update update) {
-        Message m = new Message();
-        m = update.getMessage();
-        return m;
-    }
-
-
-    @SneakyThrows
     @Override
+    @SneakyThrows
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
+        MessagesBuffer messagesBuffer = new MessagesBuffer();
+        if (update.hasCallbackQuery()) {
+            handleCallback(update);
+
+        } else if (update.hasPollAnswer()) {
+            PollAnswer pollAnswer = update.getPollAnswer();
+            String pollId = pollAnswer.getPollId();
+            Long chatUserId = pollAnswer.getUser().getId();
+            List<Integer> optionIds = pollAnswer.getOptionIds();
+            setStatisticsFromQuiz(pollId, chatUserId, optionIds);
+        } else if (update.getMessage().hasText()) {
+
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
 
-            if (messageText.contains("/send") && config.getOwnerId() == chatId) {
-                var textToSend = EmojiParser.parseToUnicode(messageText.substring(messageText.indexOf(" ")));
-                var users = userRepository.findAll();
+            Map<String, Runnable> commands = new HashMap<>();
+            commands.put("/start", () -> mainMenu(chatId));
 
-                for (User user : users) {
-                    prepareAndSendMessage(user.getChatId(), textToSend);
-                }
+            commands.put("/registration", () -> register(chatId));
+            commands.put("Регистрация", () -> register(chatId));
+
+            commands.put("/mydata", () -> mydata(chatId));
+            commands.put("Показать ваши данные", () -> mydata(chatId));
+
+            commands.put("/deletedata", () -> deleteMyData(chatId));
+            commands.put("Удалить ваши данные", () -> deleteMyData(chatId));
+
+            commands.put("/help", () -> prepareAndSendMessage(chatId, HELP_TEXT));
+
+            commands.put("Получить случайный вопрос", () -> getQuestion(chatId));
+
+            commands.put("create", () -> createQuestion(chatId));
+
+            if (update.getMessage().isUserMessage() & commands.containsKey(update.getMessage().getText())) {
+                commands.get(messageText).run();
             } else {
 
-                if ("/start".equals(messageText)) {
-                    registerUser(update.getMessage());
-                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                } else if ("/help".equals(messageText)) {
-                    prepareAndSendMessage(chatId, HELP_TEXT);
-                } else if ("/register".equals(messageText) || "Регистрация".equals(messageText)) {
-                    register(chatId);
-                } else if ("/mydata".equals(messageText) | "Показать ваши данные".equals(messageText)) {
-                    mydata(chatId);
-                } else if ("/deletedata".equals(messageText) || "Удалить ваши данные".equals(messageText)) {
-                    deleteMyData(chatId);
-                } else if ("Получить случайный вопрос".equals(messageText)) {
-                    startVictorine(chatId);
-                } else if ("Создать вопрос".equals(messageText)) {
-                    menuCreateQuestion(chatId);
+                messagesBuffer.setMessage(update.getMessage().getText());
+                messagesBuffer.setChatId(update.getMessage().getChatId());
+                messagesBuffer.setMessageId(Long.valueOf(update.getMessage().getMessageId()));
+
+                messagesBufferService.persist(messagesBuffer);
+
+                if (messagesBufferService.getAll().size() > 30) {
+                    messagesBufferService.deleteAll(messagesBufferService.getAll());
                 }
-            }
-        } else if (update.hasCallbackQuery()) {
-            String callbackData = update.getCallbackQuery().getData();
-            long messageId = update.getCallbackQuery().getMessage().getMessageId();
-            long chatId = update.getCallbackQuery().getMessage().getChatId();
-
-
-            if (callbackData.equals(YES_BUTTON)) {
-                registerUser(update.getCallbackQuery().getMessage());
-                executeEditMessageText("Вы успешно зарегистрированы", chatId, messageId);
-
-            } else if (callbackData.equals(NO_BUTTON)) {
-                executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
-            } else if (callbackData.equals("/go")) {
-                createQuestion(chatId, update);
-            } else if (callbackData.equals("bodyQuestion")) {
-                System.out.println("bodyquest");
             }
         }
     }
 
 
+    public void setStatisticsFromQuiz(String pollId, Long chatUserId, List<Integer> optionIds) {
+        System.out.println(pollId);
+        System.out.println(chatUserId);
+        System.out.println(optionIds);
 
 
+    }
+
+    public void handleCallback(Update update) {
+        String callbackData = update.getCallbackQuery().getData();
+        long messageId = update.getCallbackQuery().getMessage().getMessageId();
+        long chatId = update.getCallbackQuery().getMessage().getChatId();
+
+        if (callbackData.equals(YES_BUTTON)) {
+            registerUser(update.getCallbackQuery().getMessage());
+            executeEditMessageText("Вы успешно зарегистрированы", chatId, messageId);
+        } else if (callbackData.equals(NO_BUTTON)) {
+            executeEditMessageText("Вы не зарегистрированы", chatId, messageId);
+        } else if (callbackData.equals("/saveQuestion") && !messagesBufferService.getAll().isEmpty()) {
+            saveQuestion(chatId);
+            messagesBufferService.deleteAll(messagesBufferService.getAll());
+        } else if (callbackData.equals("/saveNot") && !messagesBufferService.getAll().isEmpty()) {
+            prepareAndSendMessage(chatId, "Вопрос не сохранен");
+            messagesBufferService.deleteAll(messagesBufferService.getAll());
+        }
+
+    }
 
     public void executeEditMessageText(String text, long chatId, long messageId) {
         EditMessageText message = new EditMessageText();
@@ -163,61 +186,114 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    //        SendPoll sendPoll = new SendPoll();
-//        sendPoll.setChatId(String.valueOf(chatId));
-//        sendPoll.setQuestion("Вопрос");
-//        sendPoll.setAllowMultipleAnswers(true);
-//        sendPoll.setIsAnonymous(false);
-//        List<String> list = new ArrayList<>();
-//        list.add("Ответ1");
-//        list.add("Ответ2");
-//        list.add("Ответ3");
-//        list.add("Ответ3");
-//        list.add("Ответ3");
-//        list.add("Ответ3");
-//        list.add("Ответ3");
-//
-//        sendPoll.setOptions(list);
-//
-//        try {
-//            execute(sendPoll);
-//        } catch (TelegramApiException e) {
-//            e.printStackTrace();
-//        }
-//
+    public void getQuestion(Long chatId) {
+        Random random = new Random();
+        List<Long> poolRandoms = new ArrayList<>(questionGenerateService.listIdQuestions());
+        var randomran = poolRandoms.get(random.nextInt(poolRandoms.size()));
+        List<String> options = new ArrayList<>(answerVariablesService.getAnswersByQuestId(randomran));
+        SendPoll sendPoll = new SendPoll();
+        sendPoll.setChatId(String.valueOf(chatId));
+        sendPoll.setIsAnonymous(false);
+        sendPoll.setType("quiz");
+        sendPoll.setExplanation(questionGenerateService.getById(randomran).get().getExplanation());
+        sendPoll.setOptions(options);
+        int isRightcount = 0;
+        sendPoll.setQuestion(questionGenerateService.getById(randomran).get().getQuestion());
 
-    public void createQuestion(long chatId, Update update) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Введите вопрос");
-
-        if (update.hasCallbackQuery()) {
-            String question = update.getCallbackQuery().getMessage().getText();
-            System.out.println(question);
+        for (Answer i : answerVariablesService.getAnswerObjByQuestId(randomran)) {
+            if (i.getIs_right()) {
+                sendPoll.setCorrectOptionId(isRightcount);
+            }
+            isRightcount++;
+        }
+        try {
+            execute(sendPoll);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
         }
     }
 
-    public void menuCreateQuestion(long chatId) {
+    public void createQuestion(long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("Создание вопроса");
+        message.setText("Введите вопрос (начиная с \"!q\", и ответы через \"!a\"," +
+                " для указания правильного ответа написать \"!r\" после вопроса," +
+                " если нужно добавить уточнение при неправильном ответе, то добавить \"*\" " +
+                " а затем нажмите \"Сохранить\" \"ВОПРОСЫ И ОТВЕТЫ НЕ ДОЛЖНЫ БЫТЬ БОЛЬШЕ 100 СИМВОЛОВ," +
+                " А ТАК-ЖЕ ДИАПАЗОН ОТВЕТОВ ОТ 2 ДО 10 \"");
 
-        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+        InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
-        List<InlineKeyboardButton> firstRow = new ArrayList<>();
+        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+        var yesButton = new InlineKeyboardButton();
 
-        InlineKeyboardButton inlineKeyboardButton1 = new InlineKeyboardButton();
-        inlineKeyboardButton1.setText("Введите тело вопроса");
-        inlineKeyboardButton1.setCallbackData("/bodyQuestion");
+        yesButton.setText("Сохранить");
+        yesButton.setCallbackData("/saveQuestion");
 
+        var noButton = new InlineKeyboardButton();
 
-        firstRow.add(inlineKeyboardButton1);
-        rowsInLine.add(firstRow);
+        noButton.setText("Не сохранять");
+        noButton.setCallbackData("/saveNot");
 
-        markupInline.setKeyboard(rowsInLine);
-        message.setReplyMarkup(markupInline);
+        rowInLine.add(yesButton);
+        rowInLine.add(noButton);
 
+        rowsInLine.add(rowInLine);
+
+        markupInLine.setKeyboard(rowsInLine);
+        message.setReplyMarkup(markupInLine);
         executeMessage(message);
+
+    }
+
+    @SneakyThrows
+    public void saveQuestion(Long chatId) {
+        List<String> listBuffer = new ArrayList<>(messagesBufferService.answerList());
+
+        for (String m : listBuffer) {
+            if (m.startsWith("!q") & !m.isEmpty()) {
+                Question question = new Question();
+                if (m.contains("*")) {
+                    question.setExplanation(m.substring(m.indexOf('*') + 1));
+                }
+                Set<Answer> answers = new HashSet<>();
+                for (String answersvar : listBuffer) {
+                    if (answersvar.startsWith("!a")) {
+                        Answer answer = new Answer();
+
+                        if (answersvar.contains("!r")) {
+                            answer.setIs_right(true);
+                        } else {
+                            messagesBufferService.deleteAll(messagesBufferService.getAll());
+                            prepareAndSendMessage(chatId, "Не указан правильный ответ!");
+                        }
+                        answer.setAnswer(answersvar.substring(2).replace("!r", ""));
+                        answers.add(answer);
+                    }
+                }
+                question.setAnswers(answers);
+                if (answers.size() >= 2 & answers.size() <= 10) {
+                    if (m.contains("!q")) {
+                        question.setQuestion(m.substring(2));
+                    } else {
+                        messagesBufferService.deleteAll(messagesBufferService.getAll());
+                        prepareAndSendMessage(chatId, "Вопрос не введен, Буфер очищен.");
+                        break;
+                    }
+                    questionGenerateService.persist(question);
+                    prepareAndSendMessage(chatId, "Вопрос сохранен в БД");
+                } else {
+                    messagesBufferService.deleteAll(messagesBufferService.getAll());
+                    prepareAndSendMessage(chatId, "Количество вопросов меньше 2 или больше 10, введите вопрос и ответы заново");
+                    break;
+
+                }
+            } else {
+                messagesBufferService.deleteAll(messagesBufferService.getAll());
+                prepareAndSendMessage(chatId, "Вопрос не добавлен!");
+                break;
+            }
+        }
     }
 
 
@@ -292,21 +368,26 @@ public class TelegramBot extends TelegramLongPollingBot {
         executeMessage(message);
     }
 
-    public void mainMenu(long chatId, String textToSend) {
+    public void mainMenu(long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText(textToSend);
+        message.setText("Главное меню");
 
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         keyboardMarkup.setResizeKeyboard(true);
 
         List<KeyboardRow> keyboardRows = new ArrayList<>();
 
+
+        InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
+        inlineKeyboardButton.setCallbackData("/createQuestion");
+
         KeyboardRow row = new KeyboardRow();
         row.add("Получить случайный вопрос");
+        row.add("Начать игру");
+
 
         keyboardRows.add(row);
-
 
         row = new KeyboardRow();
         row.add("Регистрация");
@@ -316,6 +397,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         keyboardRows.add(row);
 
         keyboardMarkup.setKeyboard(keyboardRows);
+        keyboardMarkup.setInputFieldPlaceholder("Введите");
 
         message.setReplyMarkup(keyboardMarkup);
 
@@ -331,23 +413,26 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     public void mydata(long chatId) {
-        StringBuilder readyMessageWithData = new StringBuilder();
         List<String> dataList = new ArrayList<>();
         Optional<User> userData = userRepository.findById(chatId);
-        dataList.add("Ваш username - " + userData.get().getUserName());
-        dataList.add("Ваше имя - " + userData.get().getFirstName());
-        dataList.add("Ваша фамилия - " + userData.get().getLastName());
-        dataList.add("Дата регистрации - " + userData.get().getRegisteredAt().toString());
-        dataList.add("Чат ID - " + userData.get().getChatId().toString());
 
-        System.out.println(userData);
-        for (String s : dataList) {
-            readyMessageWithData.append(s).append("\n");
+        if (userData.isPresent()) {
+            dataList.add("Ваш username - " + userData.get().getUserName());
+            dataList.add("Ваше имя - " + userData.get().getFirstName());
+            dataList.add("Ваша фамилия - " + userData.get().getLastName());
+            dataList.add("Дата регистрации - " + userData.get().getRegisteredAt().toString());
+            dataList.add("Чат ID - " + userData.get().getChatId().toString());
+
+            SendMessage message = new SendMessage();
+            message.setChatId(String.valueOf(chatId));
+
+            for (String s : dataList) {
+                message.setText(s);
+                executeMessage(message);
+            }
+        } else {
+            prepareAndSendMessage(chatId, "Вы не зарегистрированы!");
         }
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(readyMessageWithData.toString());
-        executeMessage(message);
     }
 
     public void registerUser(Message msg) {
@@ -382,15 +467,11 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    public void startCommandReceived(long chatId, String name) {
-        String answer = EmojiParser.parseToUnicode("Эй, " + name + ", Привет))!" + " :expressionless:");
-        log.info("Replied to user " + name);
-
-        mainMenu(chatId, answer);
-    }
 
     public void deleteMyData(long chatId) {
+        prepareAndSendMessage(chatId, "Данные удалены из БД");
         userRepository.deleteById(chatId);
     }
+
 
 }

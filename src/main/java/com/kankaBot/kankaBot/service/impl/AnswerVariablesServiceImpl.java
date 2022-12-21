@@ -1,10 +1,12 @@
 package com.kankaBot.kankaBot.service.impl;
 
 import com.kankaBot.kankaBot.dao.abstracts.AnswerVariablesDao;
-import com.kankaBot.kankaBot.dao.service.model.ReadWriteServiceImpl;
-import com.kankaBot.kankaBot.models.AnswerQuestionGenerate.Answer;
+import com.kankaBot.kankaBot.models.Answer;
+
 import com.kankaBot.kankaBot.service.abstracts.AnswerVariablesService;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class AnswerVariablesServiceImpl extends ReadWriteServiceImpl<Answer, Long> implements AnswerVariablesService {
@@ -16,4 +18,21 @@ public class AnswerVariablesServiceImpl extends ReadWriteServiceImpl<Answer, Lon
         super(answerVariablesDao);
         this.answerVariablesDao = answerVariablesDao;
     }
+
+    @Override
+    public List<String> getAnswersByQuestId(Long questionId) {
+        return answerVariablesDao.getAnswersByQuestId(questionId);
+    }
+
+    @Override
+    public List<Answer> getAnswerObjByQuestId(Long questionId) {
+        return answerVariablesDao.getAnswerObjByQuestId(questionId);
+    }
+
+    @Override
+    public Integer getIntValueIsCorrect(long answerId) {
+        return answerVariablesDao.getIntValueIsCorrect(answerId);
+    }
+
+
 }

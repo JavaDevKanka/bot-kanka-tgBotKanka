@@ -1,4 +1,4 @@
-package com.kankaBot.kankaBot.dao.service.model;
+package com.kankaBot.kankaBot.service.impl;
 
 import com.kankaBot.kankaBot.Exceptions.ConstraintException;
 import com.kankaBot.kankaBot.dao.abstracts.ReadWriteDao;
