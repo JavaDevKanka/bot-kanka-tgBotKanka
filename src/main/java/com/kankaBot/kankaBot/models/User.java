@@ -6,33 +6,27 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.telegram.telegrambots.meta.api.objects.ChatPhoto;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Transient;
+import javax.persistence.*;
 import java.sql.Timestamp;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity(name = "usersDataTable")
+@Entity(name = "users")
 public class User {
-
     @Id
     private Long chatId;
-
     private String firstName;
-
     private String lastName;
-
     private String userName;
-
     private Timestamp registeredAt;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @PrimaryKeyJoinColumn
+    private Statistics statistics;
     @Transient
     private ChatPhoto chatPhoto;
-
-
     @Override
     public String toString() {
         return "User{" +

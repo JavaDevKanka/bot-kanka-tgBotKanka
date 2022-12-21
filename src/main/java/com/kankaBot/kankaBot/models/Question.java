@@ -18,10 +18,12 @@ import java.util.*;
 public class Question {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     private String question;
+
+    private String explanation;
 
     @OneToMany(cascade = CascadeType.ALL)
             @JoinColumn(name = "question_id")

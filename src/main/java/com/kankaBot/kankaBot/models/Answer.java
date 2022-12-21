@@ -6,9 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.util.HashSet;
-import java.util.Set;
-
+import javax.validation.constraints.NotNull;
 
 @Getter
 @Setter
@@ -18,13 +16,14 @@ import java.util.Set;
 @Table(name = "answer")
 public class Answer {
 
-
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
 
+    @NotNull
     private String answer;
 
+    @NotNull
     private Boolean is_right;
 
     @ManyToOne
