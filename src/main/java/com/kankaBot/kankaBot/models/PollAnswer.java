@@ -12,19 +12,15 @@ import javax.persistence.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "message_buffer")
-public class MessagesBuffer {
+@Table(name = "poll_answer")
+public class PollAnswer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    private Long chatId;
-
-    private String message;
-
-    private Long messageId;
-
-    private Integer correctAnswerId;
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "user_id")
+    private User userId;
 
 }

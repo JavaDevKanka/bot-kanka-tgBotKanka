@@ -36,4 +36,5 @@ public class AnswerVariablesDaoImpl extends ReadWriteDaoImpl<Answer, Long> imple
     }
 
 
+
 }

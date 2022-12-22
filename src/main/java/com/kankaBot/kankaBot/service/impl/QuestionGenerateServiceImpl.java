@@ -21,8 +21,9 @@ public class QuestionGenerateServiceImpl extends ReadWriteServiceImpl<Question, 
 
     public void createQuestion(String question, Answer answers, Boolean is_multianswer) {
 
-   }
+    }
 
+    @Override
     public List<Long> listIdQuestions() {
         return questionGenerateDao.listIdQuestions();
     }

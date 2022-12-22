@@ -22,11 +22,12 @@ public class User {
     private String userName;
     private Timestamp registeredAt;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "userId", cascade = CascadeType.ALL)
     @PrimaryKeyJoinColumn
-    private Statistics statistics;
+    private PollAnswer pollAnswer;
     @Transient
     private ChatPhoto chatPhoto;
+
     @Override
     public String toString() {
         return "User{" +
