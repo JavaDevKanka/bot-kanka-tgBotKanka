@@ -4,10 +4,11 @@ import com.kankaBot.kankaBot.config.BotConfig;
 import com.kankaBot.kankaBot.dao.repository.AdsRepository;
 import com.kankaBot.kankaBot.dao.repository.UserRepository;
 import com.kankaBot.kankaBot.models.*;
-import com.kankaBot.kankaBot.service.abstracts.AnswerVariablesService;
 import com.kankaBot.kankaBot.service.abstracts.MessagesBufferService;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
 import com.kankaBot.kankaBot.service.abstracts.StatisticsService;
+import com.kankaBot.kankaBot.service.functions.KeyboardsBot;
+import com.kankaBot.kankaBot.service.functions.MarginFunc;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,12 +22,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
-import org.telegram.telegrambots.meta.api.objects.polls.Poll;
 import org.telegram.telegrambots.meta.api.objects.polls.PollAnswer;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.sql.Timestamp;
@@ -40,10 +36,11 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final AdsRepository adsRepository;
 
     private final QuestionGenerateService questionGenerateService;
-    private final AnswerVariablesService answerVariablesService;
     private final StatisticsService statisticsService;
+    private final KeyboardsBot keyboardsBot;
 
     private final MessagesBufferService messagesBufferService;
+    private final MarginFunc marginFunc;
 
 
     final BotConfig config;
@@ -53,17 +50,14 @@ public class TelegramBot extends TelegramLongPollingBot {
     static final String HELP_TEXT = "Тут будет help текст";
     static final String ERROR_TEXT = "Error occurred: ";
 
-    private Integer correctBufferPollQuiz = 0;
-    private Long questionIdToStatistic = 0L;
-
-
-    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, QuestionGenerateService questionGenerateService, AnswerVariablesService answerVariablesService, StatisticsService statisticsService, MessagesBufferService messagesBufferService) {
+    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, QuestionGenerateService questionGenerateService, StatisticsService statisticsService, KeyboardsBot keyboardsBot, MessagesBufferService messagesBufferService, MarginFunc marginFunc) {
         this.config = config;
         this.adsRepository = adsRepository;
         this.questionGenerateService = questionGenerateService;
-        this.answerVariablesService = answerVariablesService;
         this.statisticsService = statisticsService;
+        this.keyboardsBot = keyboardsBot;
         this.messagesBufferService = messagesBufferService;
+        this.marginFunc = marginFunc;
         List<BotCommand> listofCommands = new ArrayList<>();
         listofCommands.add(new BotCommand("/start", "Начать общаться с ботом"));
         listofCommands.add(new BotCommand("/registration", "Регистрация"));
@@ -97,10 +91,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             handleCallback(update);
 
         } else if (update.hasPollAnswer()) {
-            Long chatId = update.getPollAnswer().getUser().getId();
             PollAnswer pollAnswer = update.getPollAnswer();
             setStatisticsFromQuiz(pollAnswer);
-
 
         } else if (update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
@@ -142,46 +134,16 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     public void setStatisticsFromQuiz(PollAnswer pollAnswer) {
-        Statistics statistics = new Statistics();
-        statistics.setChatId(pollAnswer.getUser().getId());
-        statistics.setQuizUserAnswer(pollAnswer.getOptionIds().get(0));
-        statistics.setCorrectQuizAnswer(correctBufferPollQuiz);
-        statistics.setQuestionId(questionIdToStatistic);
+        Statistics statistics = marginFunc.setStatisticsFromQuiz(pollAnswer);
         statisticsService.persist(statistics);
     }
-
     @SneakyThrows
     private void executeSendPoll(SendPoll sendPoll) {
         execute(sendPoll);
     }
 
     public SendPoll getQuestion(Long chatId) {
-        Random random = new Random();
-        List<Long> poolRandoms = new ArrayList<>(questionGenerateService.listIdQuestions());
-        List<Long> existsQuestions = new ArrayList<>(statisticsService.getListForCheckRepeats(chatId));
-        for (Long i : existsQuestions) {
-            poolRandoms.remove(i);
-        }
-        var randomran = poolRandoms.get(random.nextInt(poolRandoms.size()));
-
-        List<String> options = new ArrayList<>(answerVariablesService.getAnswersByQuestId(randomran));
-        SendPoll sendPoll = new SendPoll();
-        sendPoll.setChatId(String.valueOf(chatId));
-        sendPoll.setIsAnonymous(false);
-        sendPoll.setType("quiz");
-        sendPoll.setExplanation(questionGenerateService.getById(randomran).get().getExplanation());
-        sendPoll.setOptions(options);
-        int isRightcount = 0;
-        sendPoll.setQuestion(questionGenerateService.getById(randomran).get().getQuestion());
-        for (Answer i : answerVariablesService.getAnswerObjByQuestId(randomran)) {
-            if (i.getIs_right()) {
-                sendPoll.setCorrectOptionId(isRightcount);
-                correctBufferPollQuiz = sendPoll.getCorrectOptionId();
-            }
-            isRightcount++;
-        }
-        questionIdToStatistic = randomran;
-        return sendPoll;
+        return marginFunc.getQuestion(chatId);
     }
 
     public void handleCallback(Update update) {
@@ -208,8 +170,6 @@ public class TelegramBot extends TelegramLongPollingBot {
             prepareAndSendMessage(chatId, "Выполнена очистка личного счета");
         }
     }
-
-
     @SneakyThrows
     public void saveQuestion(Long chatId) {
         List<String> listBuffer = new ArrayList<>(messagesBufferService.answerList());
@@ -267,11 +227,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     public void executeEditMessageText(String text, long chatId, long messageId) {
-        EditMessageText message = new EditMessageText();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(text);
-        message.setMessageId((int) messageId);
-
+        EditMessageText message = marginFunc.executeEditMessageText(text, chatId, messageId);
         try {
             execute(message);
         } catch (TelegramApiException e) {
@@ -288,165 +244,36 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     public void createQuestion(long chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Введите вопрос (начиная с \"!q\", и ответы через \"!a\"," +
-                " для указания правильного ответа написать \"!r\" после вопроса," +
-                " если нужно добавить уточнение при неправильном ответе, то добавить \"*\" " +
-                " а затем нажмите \"Сохранить\" \"ВОПРОСЫ И ОТВЕТЫ НЕ ДОЛЖНЫ БЫТЬ БОЛЬШЕ 100 СИМВОЛОВ," +
-                " А ТАК-ЖЕ ДИАПАЗОН ОТВЕТОВ ОТ 2 ДО 10 \"");
-
-        InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
-        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-        var yesButton = new InlineKeyboardButton();
-
-        yesButton.setText("Сохранить");
-        yesButton.setCallbackData("/saveQuestion");
-
-        var noButton = new InlineKeyboardButton();
-
-        noButton.setText("Не сохранять");
-        noButton.setCallbackData("/saveNot");
-
-        rowInLine.add(yesButton);
-        rowInLine.add(noButton);
-
-        rowsInLine.add(rowInLine);
-
-        markupInLine.setKeyboard(rowsInLine);
-        message.setReplyMarkup(markupInLine);
+        SendMessage message = keyboardsBot.createQuestion(chatId);
         executeMessage(message);
 
     }
 
-
     public void startVictorine(long chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Тестирование Java");
-
-        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
-        List<InlineKeyboardButton> firstRow = new ArrayList<>();
-        List<InlineKeyboardButton> secondRow = new ArrayList<>();
-        List<InlineKeyboardButton> thirdRow = new ArrayList<>();
-        List<InlineKeyboardButton> fourthRow = new ArrayList<>();
-
-        InlineKeyboardButton inlineKeyboardButton1 = new InlineKeyboardButton();
-        inlineKeyboardButton1.setText("Начать тестирование");
-        inlineKeyboardButton1.setCallbackData("/go");
-
-        InlineKeyboardButton inlineKeyboardButton2 = new InlineKeyboardButton();
-        inlineKeyboardButton2.setText("Мой счет");
-        inlineKeyboardButton2.setCallbackData("/score");
-
-        InlineKeyboardButton inlineKeyboardButton3 = new InlineKeyboardButton();
-        inlineKeyboardButton3.setText("Топ 10");
-        inlineKeyboardButton3.setCallbackData("/top10");
-
-        InlineKeyboardButton inlineKeyboardButton4 = new InlineKeyboardButton();
-        inlineKeyboardButton4.setText("Очистить статистику");
-        inlineKeyboardButton4.setCallbackData("/clearstat");
-
-        firstRow.add(inlineKeyboardButton1);
-        secondRow.add(inlineKeyboardButton2);
-        thirdRow.add(inlineKeyboardButton3);
-        fourthRow.add(inlineKeyboardButton4);
-        rowsInLine.add(firstRow);
-        rowsInLine.add(secondRow);
-        rowsInLine.add(thirdRow);
-        rowsInLine.add(fourthRow);
-        markupInline.setKeyboard(rowsInLine);
-        message.setReplyMarkup(markupInline);
-
+        SendMessage message = keyboardsBot.startVictorine(chatId);
         executeMessage(message);
     }
 
     public void register(long chatId) {
-
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Хотите ли выполнить регистрацию?");
-
-        InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
-        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-        var yesButton = new InlineKeyboardButton();
-
-        yesButton.setText("Регистрация автоматически");
-        yesButton.setCallbackData(YES_BUTTON);
-
-        var noButton = new InlineKeyboardButton();
-
-        noButton.setText("Отмена регистрации");
-        noButton.setCallbackData(NO_BUTTON);
-
-        rowInLine.add(yesButton);
-        rowInLine.add(noButton);
-
-        rowsInLine.add(rowInLine);
-
-        markupInLine.setKeyboard(rowsInLine);
-        message.setReplyMarkup(markupInLine);
+        SendMessage message = keyboardsBot.register(chatId);
         executeMessage(message);
     }
 
     public void mainMenu(long chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Главное меню");
-
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-        keyboardMarkup.setResizeKeyboard(true);
-
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
-
-
-        InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
-        inlineKeyboardButton.setCallbackData("/createQuestion");
-
-        KeyboardRow row = new KeyboardRow();
-        row.add("Получить случайный вопрос");
-        row.add("Начать игру");
-
-
-        keyboardRows.add(row);
-
-        row = new KeyboardRow();
-        row.add("Регистрация");
-        row.add("Показать ваши данные");
-        row.add("Удалить ваши данные");
-
-        keyboardRows.add(row);
-
-        keyboardMarkup.setKeyboard(keyboardRows);
-        keyboardMarkup.setInputFieldPlaceholder("Введите");
-
-        message.setReplyMarkup(keyboardMarkup);
-
+        SendMessage message = keyboardsBot.mainMenu(chatId);
         executeMessage(message);
     }
 
-
     public void prepareAndSendMessage(long chatId, String textToSend) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(textToSend);
+        SendMessage message = marginFunc.prepareAndSendMessage(chatId, textToSend);
         executeMessage(message);
     }
 
     public void mydata(long chatId) {
-        List<String> dataList = new ArrayList<>();
+        List<String> dataList = marginFunc.mydata(chatId);
         Optional<User> userData = userRepository.findById(chatId);
 
         if (userData.isPresent()) {
-            dataList.add("Ваш username - " + userData.get().getUserName());
-            dataList.add("Ваше имя - " + userData.get().getFirstName());
-            dataList.add("Ваша фамилия - " + userData.get().getLastName());
-            dataList.add("Дата регистрации - " + userData.get().getRegisteredAt().toString());
-            dataList.add("Чат ID - " + userData.get().getChatId().toString());
-
             SendMessage message = new SendMessage();
             message.setChatId(String.valueOf(chatId));
 
@@ -490,12 +317,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         }
     }
-
-
     public void deleteMyData(long chatId) {
         prepareAndSendMessage(chatId, "Данные удалены из БД");
         userRepository.deleteById(chatId);
     }
-
-
 }
