@@ -10,10 +10,6 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.persistence.GenerationType;
-import javax.persistence.OneToOne;
-import javax.persistence.MapsId;
-import javax.persistence.JoinColumn;
-
 
 @Getter
 @Setter
@@ -22,17 +18,11 @@ import javax.persistence.JoinColumn;
 @Entity
 @Table(name = "statistics")
 public class Statistics {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private Long chatId;
-
-    private Long correctAnswers;
-
-    @OneToOne
-    @MapsId
-    @JoinColumn(name = "user_id")
-    private User user;
+    private Integer quizUserAnswer;
+    private Integer correctQuizAnswer;
+    private Long questionId;
 }

@@ -23,6 +23,8 @@ public class Answer {
     @NotNull
     private String answer;
 
+    private Long seqnumber;
+
     @NotNull
     private Boolean is_right;
 
