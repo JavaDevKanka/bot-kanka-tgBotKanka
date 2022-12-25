@@ -16,6 +16,7 @@ import java.sql.Timestamp;
 @Entity(name = "users")
 public class User {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long chatId;
     private String firstName;
     private String lastName;

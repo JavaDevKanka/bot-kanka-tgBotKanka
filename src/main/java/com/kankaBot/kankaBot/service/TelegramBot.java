@@ -112,7 +112,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             commands.put("/help", () -> prepareAndSendMessage(chatId, HELP_TEXT));
 
-            commands.put("Получить случайный вопрос", () -> executeSendPoll(getQuestion(chatId)));
+            commands.put("Получить случайный вопрос", () -> executeQuestion(marginFunc.getQuestion(chatId)));
 
             commands.put("create", () -> createQuestion(chatId));
 
@@ -137,13 +137,10 @@ public class TelegramBot extends TelegramLongPollingBot {
         Statistics statistics = marginFunc.setStatisticsFromQuiz(pollAnswer);
         statisticsService.persist(statistics);
     }
-    @SneakyThrows
-    private void executeSendPoll(SendPoll sendPoll) {
-        execute(sendPoll);
-    }
 
-    public SendPoll getQuestion(Long chatId) {
-        return marginFunc.getQuestion(chatId);
+    @SneakyThrows
+    private void executeQuestion(SendPoll sendPoll) {
+        execute(sendPoll);
     }
 
     public void handleCallback(Update update) {
@@ -163,13 +160,12 @@ public class TelegramBot extends TelegramLongPollingBot {
             messagesBufferService.deleteAll(messagesBufferService.getAll());
         } else if (callbackData.equals("/score")) {
             prepareAndSendMessage(chatId, "Суммарное количество правильных ответов " + statisticsService.getTotalCountScoreByChatId(chatId));
-
-
         } else if (callbackData.equals("/clearstat")) {
             statisticsService.clearStatisticForTheUserChatId(chatId);
             prepareAndSendMessage(chatId, "Выполнена очистка личного счета");
         }
     }
+
     @SneakyThrows
     public void saveQuestion(Long chatId) {
         List<String> listBuffer = new ArrayList<>(messagesBufferService.answerList());
@@ -317,6 +313,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         }
     }
+
     public void deleteMyData(long chatId) {
         prepareAndSendMessage(chatId, "Данные удалены из БД");
         userRepository.deleteById(chatId);

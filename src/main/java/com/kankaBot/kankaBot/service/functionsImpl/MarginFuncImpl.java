@@ -94,7 +94,6 @@ public class MarginFuncImpl implements MarginFunc {
         }
         return sendPoll;
     }
-
     public Statistics setStatisticsFromQuiz(PollAnswer pollAnswer) {
         Statistics statistics = new Statistics();
         statistics.setChatId(pollAnswer.getUser().getId());
