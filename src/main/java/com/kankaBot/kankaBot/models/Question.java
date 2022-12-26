@@ -18,7 +18,7 @@ import java.util.*;
 public class Question {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(generator = "question_seq")
     private Long id;
 
     private String question;

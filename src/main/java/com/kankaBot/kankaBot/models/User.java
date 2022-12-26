@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 import org.telegram.telegrambots.meta.api.objects.ChatPhoto;
 
 import javax.persistence.*;
@@ -16,16 +18,12 @@ import java.sql.Timestamp;
 @Entity(name = "users")
 public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long chatId;
     private String firstName;
     private String lastName;
     private String userName;
-    private Timestamp registeredAt;
 
-    @OneToOne(mappedBy = "userId", cascade = CascadeType.ALL)
-    @PrimaryKeyJoinColumn
-    private PollAnswer pollAnswer;
+    private Timestamp registeredAt;
     @Transient
     private ChatPhoto chatPhoto;
 

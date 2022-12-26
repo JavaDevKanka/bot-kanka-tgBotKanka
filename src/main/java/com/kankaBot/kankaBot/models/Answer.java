@@ -17,8 +17,8 @@ import javax.validation.constraints.NotNull;
 public class Answer {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    @GeneratedValue(generator = "answer_seq")
+    private Long id;
 
     @NotNull
     private String answer;

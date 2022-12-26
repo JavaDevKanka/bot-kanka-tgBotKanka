@@ -14,11 +14,11 @@ import javax.persistence.Id;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity(name = "adsTable")
+@Entity(name = "ads_table")
 public class Ads {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(generator = "ads_seq")
     private Long id;
 
     private String ad;

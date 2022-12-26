@@ -11,6 +11,7 @@ import com.kankaBot.kankaBot.service.functions.KeyboardsBot;
 import com.kankaBot.kankaBot.service.functions.MarginFunc;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -25,6 +26,13 @@ import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScope
 import org.telegram.telegrambots.meta.api.objects.polls.PollAnswer;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.*;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Timestamp;
 import java.util.*;
 
@@ -42,8 +50,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final MessagesBufferService messagesBufferService;
     private final MarginFunc marginFunc;
 
-
-    final BotConfig config;
+    private final BotConfig config;
 
     static final String YES_BUTTON = "YES_BUTTON";
     static final String NO_BUTTON = "NO_BUTTON";
@@ -89,6 +96,11 @@ public class TelegramBot extends TelegramLongPollingBot {
         MessagesBuffer messagesBuffer = new MessagesBuffer();
         if (update.hasCallbackQuery()) {
             handleCallback(update);
+
+        } else if (update.getMessage().hasDocument()) {
+            String pathToSaveQuestionFile = "filesQuest\\" + update.getMessage().getDocument().getFileName();
+            String fieldId = update.getMessage().getDocument().getFileId();
+            quizFromTextFile(pathToSaveQuestionFile, fieldId);
 
         } else if (update.hasPollAnswer()) {
             PollAnswer pollAnswer = update.getPollAnswer();
@@ -165,6 +177,50 @@ public class TelegramBot extends TelegramLongPollingBot {
             prepareAndSendMessage(chatId, "Выполнена очистка личного счета");
         }
     }
+
+
+    public void quizFromTextFile(String file_name, String file_id) throws IOException {
+        URL url = new URL("https://api.telegram.org/bot" + "5922259665:AAFOKzJCcltfkM7oL07x3U9IYsOetZGOWOQ" + "/getFile?file_id=" + file_id);
+        BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream()));
+        String res = in.readLine();
+        JSONObject jresult = new JSONObject(res);
+        JSONObject path = jresult.getJSONObject("result");
+        String file_path = path.getString("file_path");
+        URL downoload = new URL("https://api.telegram.org/file/bot" + "5922259665:AAFOKzJCcltfkM7oL07x3U9IYsOetZGOWOQ" + "/" + file_path);
+        FileOutputStream fos = new FileOutputStream(file_name);
+        System.out.println("Start upload");
+        ReadableByteChannel rbc = Channels.newChannel(downoload.openStream());
+        fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+        fos.close();
+        rbc.close();
+        System.out.println("Uploaded!");
+    }
+
+    // Получение текста из файла без потерь "filesQuest\\questionse.txt",
+    public String saveStreamQuestionsFromFile(String filePath, String charset) throws IOException {
+        java.io.InputStream is = new java.io.FileInputStream(filePath);
+        try {
+            final int bufsize = 4096;
+            int available = is.available();
+            byte[] data = new byte[Math.max(available, bufsize)];
+            int used = 0;
+            while (true) {
+                if (data.length - used < bufsize) {
+                    byte[] newData = new byte[data.length << 1];
+                    System.arraycopy(data, 0, newData, 0, used);
+                    data = newData;
+                }
+                int got = is.read(data, used, data.length - used);
+                if (got <= 0) break;
+                used += got;
+            }
+            return charset != null ? new String(data, 0, used, charset)
+                    : new String(data, 0, used);
+        } finally {
+            is.close();
+        }
+    }
+
 
     @SneakyThrows
     public void saveQuestion(Long chatId) {
