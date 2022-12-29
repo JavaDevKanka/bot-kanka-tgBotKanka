@@ -86,7 +86,7 @@ public class MarginFuncImpl implements MarginFunc {
         sendPoll.setQuestion(questionGenerateService.getById(randomran).get().getQuestion());
         questionIdToStatistic = randomran;
         for (Answer i : answerVariablesService.getAnswerObjByQuestId(randomran)) {
-            if (i.getIs_right()) {
+            if (i.getIs_right().equals(true)) {
                 sendPoll.setCorrectOptionId(isRightcount);
                 correctBufferPollQuiz = sendPoll.getCorrectOptionId();
             }
@@ -94,6 +94,7 @@ public class MarginFuncImpl implements MarginFunc {
         }
         return sendPoll;
     }
+
     public Statistics setStatisticsFromQuiz(PollAnswer pollAnswer) {
         Statistics statistics = new Statistics();
         statistics.setChatId(pollAnswer.getUser().getId());

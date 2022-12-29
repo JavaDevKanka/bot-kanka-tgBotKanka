@@ -33,4 +33,8 @@ public class StatisticsServiceImpl extends ReadWriteServiceImpl<Statistics, Long
     public List<Long> getListForCheckRepeats(Long chatId) {
         return statisticsDao.getListForCheckRepeats(chatId);
     }
+    @Override
+    public Long getCountUserAnswers(Long chatId) {
+        return statisticsDao.getCountUserAnswers(chatId);
+    }
 }

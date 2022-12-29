@@ -11,4 +11,5 @@ public interface StatisticsService extends ReadWriteService<Statistics, Long> {
     void clearStatisticForTheUserChatId(Long chatId);
     Long getTotalCountScoreByChatId(Long chatId);
     List<Long> getListForCheckRepeats(Long chatId);
+    Long getCountUserAnswers(Long chatId);
 }

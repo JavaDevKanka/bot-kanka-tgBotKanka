@@ -37,4 +37,11 @@ public class StatisticsDaoImpl extends ReadWriteDaoImpl<Statistics, Long> implem
                 .setParameter("chatId", chatId)
                 .getResultList();
     }
+
+    @Override
+    public Long getCountUserAnswers(Long chatId) {
+        return entityManager.createQuery("select count(s.id) FROM Statistics s where s.chatId = :chatId", Long.class)
+                .setParameter("chatId", chatId)
+                .getSingleResult();
+    }
 }

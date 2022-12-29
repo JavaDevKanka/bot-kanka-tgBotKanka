@@ -1,5 +1,6 @@
 package com.kankaBot.kankaBot.service.functionsImpl;
 
+import com.kankaBot.kankaBot.models.Answer;
 import com.kankaBot.kankaBot.models.Question;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
 import com.kankaBot.kankaBot.service.functions.ReadFileQuestions;
@@ -14,7 +15,9 @@ import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 
 @Component
@@ -65,18 +68,25 @@ public class ReadFileQuestionsImpl implements ReadFileQuestions {
     }
 
     public void writeQuestionsToDBFromFile(String fileData) {
-        List<String> list = new ArrayList<>(List.of(fileData.split("-")));
-        List<Question> questions = new ArrayList<>();
-        for (int i = 0; i < list.size(); i++) {
+        List<String> list = new ArrayList<>(List.of(fileData.split("@")));
+        for (String s : list) {
+            List<String> subStrList = new ArrayList<>(List.of(s.split(";")));
+            Set<Answer> answers = new HashSet<>();
             Question question = new Question();
-            if (list.get(i).contains("!q")) {
-                question.setQuestion(list.get(i).substring(list.get(i).indexOf("!q") + 2, list.get(i).indexOf(";")));
-                if (list.get(i).contains("!e")) {
-                    question.setExplanation(list.get(i).substring(list.get(i).indexOf("!e") + 2, list.get(i).indexOf(",")));
+            question.setQuestion(subStrList.get(0));
+            for (int i = 1; i < subStrList.size() - 1; i++) {
+                Answer answer = new Answer();
+                if (subStrList.get(i).contains("$")) {
+                    answer.setIs_right(true);
+                } else {
+                    answer.setIs_right(false);
                 }
-                questionGenerateService.persist(question);
+                answer.setAnswer(subStrList.get(i).replace('$', ' '));
+                answer.setSeqnumber((long) i);
+                answers.add(answer);
             }
-
+            question.setAnswers(answers);
+            questionGenerateService.persist(question);
 
         }
     }
