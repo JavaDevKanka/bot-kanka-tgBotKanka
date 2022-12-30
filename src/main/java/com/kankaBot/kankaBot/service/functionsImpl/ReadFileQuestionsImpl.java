@@ -1,5 +1,6 @@
 package com.kankaBot.kankaBot.service.functionsImpl;
 
+import com.kankaBot.kankaBot.config.BotConfig;
 import com.kankaBot.kankaBot.models.Answer;
 import com.kankaBot.kankaBot.models.Question;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
@@ -24,19 +25,21 @@ import java.util.Set;
 public class ReadFileQuestionsImpl implements ReadFileQuestions {
 
     private final QuestionGenerateService questionGenerateService;
+    private final BotConfig botConfig;
 
-    public ReadFileQuestionsImpl(QuestionGenerateService questionGenerateService) {
+    public ReadFileQuestionsImpl(QuestionGenerateService questionGenerateService, BotConfig botConfig) {
         this.questionGenerateService = questionGenerateService;
+        this.botConfig = botConfig;
     }
 
     public void quizFromTextFile(String file_name, String file_id) throws IOException {
-        URL url = new URL("https://api.telegram.org/bot" + "5922259665:AAFOKzJCcltfkM7oL07x3U9IYsOetZGOWOQ" + "/getFile?file_id=" + file_id);
+        URL url = new URL("https://api.telegram.org/bot" + botConfig.getToken() + "/getFile?file_id=" + file_id);
         BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream()));
         String res = in.readLine();
         JSONObject jresult = new JSONObject(res);
         JSONObject path = jresult.getJSONObject("result");
         String file_path = path.getString("file_path");
-        URL downoload = new URL("https://api.telegram.org/file/bot" + "5922259665:AAFOKzJCcltfkM7oL07x3U9IYsOetZGOWOQ" + "/" + file_path);
+        URL downoload = new URL("https://api.telegram.org/file/bot" + botConfig.getToken() + "/" + file_path);
         FileOutputStream fos = new FileOutputStream(file_name);
         System.out.println("Start upload");
         ReadableByteChannel rbc = Channels.newChannel(downoload.openStream());

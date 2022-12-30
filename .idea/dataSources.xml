@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="tgbot@localhost" uuid="f89e9b77-5e53-4163-b3c9-f10e4c228a43">
+    <data-source source="LOCAL" name="tgtest@localhost" uuid="f89e9b77-5e53-4163-b3c9-f10e4c228a43">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
-      <jdbc-url>jdbc:postgresql://localhost:5432/tgbot</jdbc-url>
+      <jdbc-url>jdbc:postgresql://localhost:5432/tgtest</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>
