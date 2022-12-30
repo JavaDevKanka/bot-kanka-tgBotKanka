@@ -16,7 +16,7 @@ import javax.persistence.*;
 public class MessagesBuffer {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(generator = "message_seq")
     private Long id;
 
     private Long chatId;

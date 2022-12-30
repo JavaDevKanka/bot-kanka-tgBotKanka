@@ -9,6 +9,7 @@ import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
 import com.kankaBot.kankaBot.service.abstracts.StatisticsService;
 import com.kankaBot.kankaBot.service.functions.KeyboardsBot;
 import com.kankaBot.kankaBot.service.functions.MarginFunc;
+import com.kankaBot.kankaBot.service.functions.ReadFileQuestions;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -38,24 +39,25 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final QuestionGenerateService questionGenerateService;
     private final StatisticsService statisticsService;
     private final KeyboardsBot keyboardsBot;
+    private final ReadFileQuestions readFileQuestions;
 
     private final MessagesBufferService messagesBufferService;
     private final MarginFunc marginFunc;
 
-
-    final BotConfig config;
+    private final BotConfig config;
 
     static final String YES_BUTTON = "YES_BUTTON";
     static final String NO_BUTTON = "NO_BUTTON";
     static final String HELP_TEXT = "Тут будет help текст";
     static final String ERROR_TEXT = "Error occurred: ";
 
-    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, QuestionGenerateService questionGenerateService, StatisticsService statisticsService, KeyboardsBot keyboardsBot, MessagesBufferService messagesBufferService, MarginFunc marginFunc) {
+    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, QuestionGenerateService questionGenerateService, StatisticsService statisticsService, KeyboardsBot keyboardsBot, ReadFileQuestions readFileQuestions, MessagesBufferService messagesBufferService, MarginFunc marginFunc) {
         this.config = config;
         this.adsRepository = adsRepository;
         this.questionGenerateService = questionGenerateService;
         this.statisticsService = statisticsService;
         this.keyboardsBot = keyboardsBot;
+        this.readFileQuestions = readFileQuestions;
         this.messagesBufferService = messagesBufferService;
         this.marginFunc = marginFunc;
         List<BotCommand> listofCommands = new ArrayList<>();
@@ -94,6 +96,13 @@ public class TelegramBot extends TelegramLongPollingBot {
             PollAnswer pollAnswer = update.getPollAnswer();
             setStatisticsFromQuiz(pollAnswer);
 
+        } else if (update.getMessage().hasDocument()) {
+            String pathToSaveQuestionFile = "filesQuest\\" + update.getMessage().getDocument().getFileName();
+            String fieldId = update.getMessage().getDocument().getFileId();
+            readFileQuestions.quizFromTextFile(pathToSaveQuestionFile, fieldId);
+            String stringFromFile = readFileQuestions.saveStreamQuestionsFromFile("filesQuest\\" + update.getMessage().getDocument().getFileName(), "UTF-8");
+            readFileQuestions.writeQuestionsToDBFromFile(stringFromFile);
+
         } else if (update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
@@ -125,7 +134,6 @@ public class TelegramBot extends TelegramLongPollingBot {
                 messagesBuffer.setChatId(update.getMessage().getChatId());
                 messagesBuffer.setMessageId(Long.valueOf(update.getMessage().getMessageId()));
                 messagesBufferService.persist(messagesBuffer);
-
                 if (messagesBufferService.getAll().size() > 30) {
                     messagesBufferService.deleteAll(messagesBufferService.getAll());
                 }
@@ -166,13 +174,14 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+
     @SneakyThrows
     public void saveQuestion(Long chatId) {
         List<String> listBuffer = new ArrayList<>(messagesBufferService.answerList());
         messagesBufferService.deleteAll(messagesBufferService.getAll());
         Set<Answer> answers = new HashSet<>();
         Question question = new Question();
-        Long answerCounter = 0L;
+        Long answerCounter = 1L;
         for (String buffer : listBuffer) {
             if (buffer.startsWith("!q")) {
                 question.setQuestion(buffer.substring(2));
@@ -189,6 +198,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 if (buffer.contains("!r")) {
                     answer.setIs_right(true);
                     answer.setAnswer(buffer.substring(buffer.indexOf("!a") + 2, buffer.indexOf("!r")));
+                    answer.setSeqnumber(answerCounter);
                 } else {
                     answer.setIs_right(false);
                 }

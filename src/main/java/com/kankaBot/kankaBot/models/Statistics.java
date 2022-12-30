@@ -19,7 +19,7 @@ import javax.persistence.GenerationType;
 @Table(name = "statistics")
 public class Statistics {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(generator = "statistics_seq")
     private Long id;
     private Long chatId;
     private Integer quizUserAnswer;
