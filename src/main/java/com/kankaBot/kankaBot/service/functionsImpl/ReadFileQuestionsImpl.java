@@ -73,7 +73,7 @@ public class ReadFileQuestionsImpl implements ReadFileQuestions {
     public void writeQuestionsToDBFromFile(String fileData) {
         List<String> list = new ArrayList<>(List.of(fileData.split("@")));
         for (String s : list) {
-            List<String> subStrList = new ArrayList<>(List.of(s.split(";")));
+            List<String> subStrList = new ArrayList<>(List.of(s.split("\\^")));
             Set<Answer> answers = new HashSet<>();
             Question question = new Question();
             question.setQuestion(subStrList.get(0));
