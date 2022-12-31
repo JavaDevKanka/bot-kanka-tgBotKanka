@@ -73,11 +73,12 @@ public class ReadFileQuestionsImpl implements ReadFileQuestions {
     public void writeQuestionsToDBFromFile(String fileData) {
         List<String> list = new ArrayList<>(List.of(fileData.split("@")));
         for (String s : list) {
-            List<String> subStrList = new ArrayList<>(List.of(s.split("\\^")));
+            List<String> subStrList = new ArrayList<>(List.of(s.split("\r")));
             Set<Answer> answers = new HashSet<>();
             Question question = new Question();
             question.setQuestion(subStrList.get(0));
-            for (int i = 1; i < subStrList.size() - 1; i++) {
+            question.setTopic(subStrList.get(1));
+            for (int i = 2; i < subStrList.size() - 1; i++) {
                 Answer answer = new Answer();
                 if (subStrList.get(i).contains("$")) {
                     answer.setIs_right(true);
@@ -90,9 +91,6 @@ public class ReadFileQuestionsImpl implements ReadFileQuestions {
             }
             question.setAnswers(answers);
             questionGenerateService.persist(question);
-
         }
     }
 }
-
-
