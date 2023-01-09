@@ -8,10 +8,11 @@ import com.kankaBot.kankaBot.models.MessagesBuffer;
 import com.kankaBot.kankaBot.models.Statistics;
 import com.kankaBot.kankaBot.models.User;
 import com.kankaBot.kankaBot.service.abstracts.MessagesBufferService;
+import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
 import com.kankaBot.kankaBot.service.abstracts.StatisticsService;
 import com.kankaBot.kankaBot.service.functions.KeyboardsBot;
 import com.kankaBot.kankaBot.service.functions.MarginFunc;
-import com.kankaBot.kankaBot.service.functions.ReadFileQuestions;
+import com.kankaBot.kankaBot.service.functions.FileOperations;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,6 +21,7 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.polls.SendPoll;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
@@ -31,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 @Slf4j
 @Component
 public class TelegramBot extends TelegramLongPollingBot {
@@ -38,34 +41,41 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final UserRepository userRepository;
     private final AdsRepository adsRepository;
 
-
     private final StatisticsService statisticsService;
     private final KeyboardsBot keyboardsBot;
-    private final ReadFileQuestions readFileQuestions;
-
+    private final FileOperations fileOperations;
     private final MessagesBufferService messagesBufferService;
     private final MarginFunc marginFunc;
-
+    private final QuestionGenerateService questionGenerateService;
     private final BotConfig config;
-    static final String HELP_TEXT = "Тут будет help текст";
-    static final String ERROR_TEXT = "Error occurred: ";
-    static final String YES_BUTTON = "YES_BUTTON";
-    static final String NO_BUTTON = "NO_BUTTON";
 
-    public TelegramBot(BotConfig config, AdsRepository adsRepository, UserRepository userRepository, StatisticsService statisticsService, KeyboardsBot keyboardsBot, ReadFileQuestions readFileQuestions, MessagesBufferService messagesBufferService, MarginFunc marginFunc) {
+    private static final String HELP_TEXT = "Тут будет help текст";
+    private static final String ERROR_TEXT = "Error occurred: ";
+    private static final String YES_BUTTON = "YES_BUTTON";
+    private static final String NO_BUTTON = "NO_BUTTON";
+    int counterGlobal = 0;
+
+    public TelegramBot(BotConfig config,
+                       AdsRepository adsRepository,
+                       UserRepository userRepository,
+                       StatisticsService statisticsService,
+                       KeyboardsBot keyboardsBot,
+                       FileOperations fileOperations,
+                       MessagesBufferService messagesBufferService,
+                       MarginFunc marginFunc, QuestionGenerateService questionGenerateService) {
         this.config = config;
         this.adsRepository = adsRepository;
         this.statisticsService = statisticsService;
         this.keyboardsBot = keyboardsBot;
-        this.readFileQuestions = readFileQuestions;
+        this.fileOperations = fileOperations;
         this.messagesBufferService = messagesBufferService;
         this.marginFunc = marginFunc;
+        this.questionGenerateService = questionGenerateService;
         List<BotCommand> listofCommands = new ArrayList<>();
         listofCommands.add(new BotCommand("/start", "Начать общаться с ботом"));
         listofCommands.add(new BotCommand("/registration", "Регистрация"));
         listofCommands.add(new BotCommand("/help", "Информация по использованию бота"));
         listofCommands.add(new BotCommand("/settings", "Установить личные настройки"));
-
         try {
             this.execute(new SetMyCommands(listofCommands, new BotCommandScopeDefault(), null));
         } catch (TelegramApiException e) {
@@ -93,28 +103,32 @@ public class TelegramBot extends TelegramLongPollingBot {
         } else if (update.hasPollAnswer()) {
             PollAnswer pollAnswer = update.getPollAnswer();
             setStatisticsFromQuiz(pollAnswer);
+            globalQuestionVictorineSelector(pollAnswer.getUser().getId(), questionGenerateService.listIdQuestions());
 
         } else if (update.getMessage().hasDocument()) {
             String pathToSaveQuestionFile = "filesQuest\\" + update.getMessage().getDocument().getFileName();
             String fieldId = update.getMessage().getDocument().getFileId();
-            readFileQuestions.quizFromTextFile(pathToSaveQuestionFile, fieldId);
-            String stringFromFile = readFileQuestions.saveStreamQuestionsFromFile("filesQuest\\" + update.getMessage().getDocument().getFileName(), "UTF-8");
-            readFileQuestions.writeQuestionsToDBFromFile(stringFromFile);
-
+            fileOperations.quizFromTextFile(pathToSaveQuestionFile, fieldId);
+            String stringFromFile = fileOperations.saveStreamQuestionsFromFile("filesQuest\\" + update.getMessage().getDocument().getFileName(), "UTF-8");
+            fileOperations.writeQuestionsToDBFromFile(stringFromFile);
         } else if (update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
-
             Map<String, Runnable> commands = new HashMap<>();
+
             commands.put("/start", () -> executeSendMessage(keyboardsBot.mainMenu(chatId)));
             commands.put("/registration", () -> executeSendMessage(keyboardsBot.register(chatId)));
             commands.put("/help", () -> prepareAndSendMessage(chatId, HELP_TEXT));
-            commands.put("Получить случайный вопрос", () -> executeQuestion(marginFunc.getQuestion(chatId)));
             commands.put("create", () -> executeSendMessage(keyboardsBot.createQuestion(chatId)));
             commands.put("Тестирование по теме", () -> executeSendMessage(keyboardsBot.startVictorine(chatId)));
 
             if (commands.containsKey(update.getMessage().getText())) {
                 commands.get(messageText).run();
+
+            } else if (messageText.equals("Тест по случайным темам")) {
+                counterGlobal = 0;
+                globalQuestionVictorineSelector(chatId, questionGenerateService.listIdQuestions());
+
             } else {
                 messagesBuffer.setMessage(update.getMessage().getText());
                 messagesBuffer.setChatId(update.getMessage().getChatId());
@@ -127,10 +141,24 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    @SneakyThrows
+    public void globalQuestionVictorineSelector(Long chatId, List<Long> listIds) {
+
+        if (counterGlobal < 10) {
+            executeQuestion(marginFunc.getQuestion(chatId, listIds));
+            counterGlobal++;
+        } else {
+            fileOperations.resultImage(chatId);
+            executeImage(marginFunc.sendPhoto(chatId, "./imageResult/end.png"));
+            counterGlobal = 0;
+        }
+    }
+
+
+    @SneakyThrows
     public void handleCallback(Update update) {
         String callbackData = update.getCallbackQuery().getData();
         long chatId = update.getCallbackQuery().getMessage().getChatId();
-
         if (callbackData.equals(YES_BUTTON)) {
             marginFunc.registerUser(update.getCallbackQuery().getMessage());
             prepareAndSendMessage(chatId, "Вы успешно зарегистрированы");
@@ -151,6 +179,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+
+    @SneakyThrows
     public void setStatisticsFromQuiz(PollAnswer pollAnswer) {
         Statistics statistics = marginFunc.setStatisticsFromQuiz(pollAnswer);
         statisticsService.persist(statistics);
@@ -161,14 +191,19 @@ public class TelegramBot extends TelegramLongPollingBot {
         execute(sendPoll);
     }
 
+
+    @SneakyThrows
     private void executeSendMessage(SendMessage message) {
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            log.error(ERROR_TEXT + e.getMessage());
-        }
+        execute(message);
     }
 
+    @SneakyThrows
+    private void executeImage(SendPhoto sendPhoto) {
+        execute(sendPhoto);
+    }
+
+
+    @SneakyThrows
     public void prepareAndSendMessage(long chatId, String textToSend) {
         SendMessage message = marginFunc.prepareAndSendMessage(chatId, textToSend);
         executeSendMessage(message);
@@ -176,10 +211,8 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Scheduled(cron = "${cron.scheduler}")
     public void sendAds() {
-
         var ads = adsRepository.findAll();
         var users = userRepository.findAll();
-
         for (Ads ad : ads) {
             for (User user : users) {
                 prepareAndSendMessage(user.getChatId(), ad.getAd());

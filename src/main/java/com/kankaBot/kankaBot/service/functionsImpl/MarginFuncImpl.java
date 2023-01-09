@@ -14,9 +14,12 @@ import lombok.SneakyThrows;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.polls.SendPoll;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.polls.PollAnswer;
 
+import java.io.File;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,19 +33,18 @@ public class MarginFuncImpl implements MarginFunc {
 
     private final UserRepository userRepository;
     private final StatisticsService statisticsService;
-
     private final QuestionGenerateService questionGenerateService;
-
     private final AnswerVariablesService answerVariablesService;
     private final MessagesBufferService messagesBufferService;
 
     private Integer correctBufferPollQuiz = 0;
     private Long questionIdToStatistic = 0L;
 
-
-
-
-    public MarginFuncImpl(UserRepository userRepository, StatisticsService statisticsService, QuestionGenerateService questionGenerateService, AnswerVariablesService answerVariablesService, MessagesBufferService messagesBufferService) {
+    public MarginFuncImpl(UserRepository userRepository,
+                          StatisticsService statisticsService,
+                          QuestionGenerateService questionGenerateService,
+                          AnswerVariablesService answerVariablesService,
+                          MessagesBufferService messagesBufferService) {
         this.userRepository = userRepository;
         this.statisticsService = statisticsService;
         this.questionGenerateService = questionGenerateService;
@@ -56,14 +58,22 @@ public class MarginFuncImpl implements MarginFunc {
         message.setText(textToSend);
         return message;
     }
+
+    public SendPhoto sendPhoto(Long chatId, String urlImage) {
+        SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setChatId(String.valueOf(chatId));
+        sendPhoto.setPhoto(new InputFile(new File(urlImage)));
+        return sendPhoto;
+    }
+
     @Override
-    public SendPoll getQuestion(Long chatId) {
+    public SendPoll getQuestion(Long chatId, List<Long> listOfQuestions) {
         SendPoll sendPoll = new SendPoll();
         sendPoll.setChatId(String.valueOf(chatId));
         sendPoll.setIsAnonymous(false);
         sendPoll.setType("quiz");
         Random random = new Random();
-        List<Long> poolRandoms = new ArrayList<>(questionGenerateService.listIdQuestions());
+        List<Long> poolRandoms = new ArrayList<>(listOfQuestions);
         List<Long> existsQuestions = new ArrayList<>(statisticsService.getListForCheckRepeats(chatId));
         for (Long i : existsQuestions) {
             poolRandoms.remove(i);
@@ -89,9 +99,10 @@ public class MarginFuncImpl implements MarginFunc {
     public Statistics setStatisticsFromQuiz(PollAnswer pollAnswer) {
         Statistics statistics = new Statistics();
         statistics.setChatId(pollAnswer.getUser().getId());
-        statistics.setQuizUserAnswer(pollAnswer.getOptionIds().get(0));
-        statistics.setCorrectQuizAnswer(correctBufferPollQuiz);
+        statistics.setQuizUserAnswer(pollAnswer.getOptionIds().get(0) + 1);
+        statistics.setCorrectQuizAnswer(correctBufferPollQuiz + 1);
         statistics.setQuestionId(questionIdToStatistic);
+        statistics.setQuestionType(questionGenerateService.getById(questionIdToStatistic).get().getTopic());
         return statistics;
     }
 

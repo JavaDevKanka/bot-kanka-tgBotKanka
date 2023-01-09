@@ -72,17 +72,12 @@ public class KeyboardsBotImpl implements KeyboardsBot {
         inlineKeyboardButton2.setText("Мой счет");
         inlineKeyboardButton2.setCallbackData("/score");
 
-        InlineKeyboardButton inlineKeyboardButton3 = new InlineKeyboardButton();
-        inlineKeyboardButton3.setText("Топ 10");
-        inlineKeyboardButton3.setCallbackData("/top10");
-
         InlineKeyboardButton inlineKeyboardButton4 = new InlineKeyboardButton();
         inlineKeyboardButton4.setText("Очистить статистику");
         inlineKeyboardButton4.setCallbackData("/clearstat");
 
         firstRow.add(inlineKeyboardButton1);
         secondRow.add(inlineKeyboardButton2);
-        thirdRow.add(inlineKeyboardButton3);
         fourthRow.add(inlineKeyboardButton4);
         rowsInLine.add(firstRow);
         rowsInLine.add(secondRow);
@@ -114,7 +109,7 @@ public class KeyboardsBotImpl implements KeyboardsBot {
         inlineKeyboardButton2.setCallbackData("/oop");
 
         InlineKeyboardButton inlineKeyboardButton3 = new InlineKeyboardButton();
-        inlineKeyboardButton3.setText("exceptions");
+        inlineKeyboardButton3.setText("Exceptions");
         inlineKeyboardButton3.setCallbackData("/exceptions");
 
         InlineKeyboardButton inlineKeyboardButton4 = new InlineKeyboardButton();
@@ -168,26 +163,17 @@ public class KeyboardsBotImpl implements KeyboardsBot {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText("Главное меню");
-
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         keyboardMarkup.setResizeKeyboard(true);
-
         List<KeyboardRow> keyboardRows = new ArrayList<>();
-
-
         InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
         inlineKeyboardButton.setCallbackData("/createQuestion");
-
         KeyboardRow row = new KeyboardRow();
-        row.add("Получить случайный вопрос");
+        row.add("Тест по случайным темам");
         row.add("Тестирование по теме");
-
-
         keyboardRows.add(row);
-
         keyboardMarkup.setKeyboard(keyboardRows);
         keyboardMarkup.setInputFieldPlaceholder("Введите");
-
         message.setReplyMarkup(keyboardMarkup);
         return message;
     }

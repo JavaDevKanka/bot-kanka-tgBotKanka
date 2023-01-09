@@ -3,15 +3,18 @@ package com.kankaBot.kankaBot.service.functionsImpl;
 import com.kankaBot.kankaBot.config.BotConfig;
 import com.kankaBot.kankaBot.models.Answer;
 import com.kankaBot.kankaBot.models.Question;
+import com.kankaBot.kankaBot.models.dto.ResultOfTest;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
-import com.kankaBot.kankaBot.service.functions.ReadFileQuestions;
+import com.kankaBot.kankaBot.service.abstracts.StatisticsService;
+import com.kankaBot.kankaBot.service.functions.FileOperations;
+import lombok.SneakyThrows;
 import org.json.JSONObject;
 import org.springframework.stereotype.Component;
 
-import java.io.BufferedReader;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.*;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -22,14 +25,17 @@ import java.util.Set;
 
 
 @Component
-public class ReadFileQuestionsImpl implements ReadFileQuestions {
+public class FileOperationsImpl implements FileOperations {
 
     private final QuestionGenerateService questionGenerateService;
     private final BotConfig botConfig;
+    private final StatisticsService statisticsService;
 
-    public ReadFileQuestionsImpl(QuestionGenerateService questionGenerateService, BotConfig botConfig) {
+
+    public FileOperationsImpl(QuestionGenerateService questionGenerateService, BotConfig botConfig, StatisticsService statisticsService) {
         this.questionGenerateService = questionGenerateService;
         this.botConfig = botConfig;
+        this.statisticsService = statisticsService;
     }
 
     public void quizFromTextFile(String file_name, String file_id) throws IOException {
@@ -41,12 +47,10 @@ public class ReadFileQuestionsImpl implements ReadFileQuestions {
         String file_path = path.getString("file_path");
         URL downoload = new URL("https://api.telegram.org/file/bot" + botConfig.getToken() + "/" + file_path);
         FileOutputStream fos = new FileOutputStream(file_name);
-        System.out.println("Start upload");
         ReadableByteChannel rbc = Channels.newChannel(downoload.openStream());
         fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
         fos.close();
         rbc.close();
-        System.out.println("Uploaded!");
     }
 
     public String saveStreamQuestionsFromFile(String filePath, String charset) throws IOException {
@@ -86,11 +90,52 @@ public class ReadFileQuestionsImpl implements ReadFileQuestions {
                     answer.setIs_right(false);
                 }
                 answer.setAnswer(subStrList.get(i).replace('$', ' '));
-                answer.setSeqnumber((long) i);
+                answer.setSeqnumber((long) i - 1);
                 answers.add(answer);
             }
             question.setAnswers(answers);
             questionGenerateService.persist(question);
         }
+    }
+
+    @SneakyThrows
+    public void resultImage(Long chatId) {
+        String grade = "Ваша оценка - " + statisticsService.getCountRightForResultByChatId(chatId);
+        List<ResultOfTest> resultOfTests = statisticsService.getLoseAnswersForResultByChatId(chatId);
+        File file = new File("./imageResult/start.png");
+        BufferedImage image = ImageIO.read(file);
+        Graphics2D g = image.createGraphics();
+        g.setColor(Color.white);
+        g.setBackground(Color.DARK_GRAY);
+        g.setFont(new Font("Arial", Font.CENTER_BASELINE, 15));
+
+        g.drawString("Результат пройденного теста ^_^", 600, 50);
+
+        g.drawString("Вопросы с неправильным ответом", 100, 80);
+        g.drawString(grade, 100, 115);
+
+        int ordinalX = 100;
+        int ordinalY = 160;
+
+        for (int i = 0; i < resultOfTests.size(); i++) {
+            g.drawString("Вопрос - " + resultOfTests.get(i).getQuestion(), ordinalX, ordinalY);
+
+            for (int j = 0; j < 1; j++) {
+                g.drawString("Правильный ответ - " + resultOfTests.get(i).getCorrectAnswer(), ordinalX, ordinalY + 25);
+            }
+
+            for (int j = 0; j < 900; j++) {
+                g.drawString("_", ordinalX + j, ordinalY + 30);
+            }
+            ordinalY += 60;
+        }
+
+        for (ResultOfTest s : resultOfTests) {
+            System.out.println(s.getUserAnswer());
+        }
+
+
+        ImageIO.write(image, "png", new File(file.getParentFile(), "end.png"));
+        statisticsService.clearStatisticForTheUserChatId(chatId);
     }
 }

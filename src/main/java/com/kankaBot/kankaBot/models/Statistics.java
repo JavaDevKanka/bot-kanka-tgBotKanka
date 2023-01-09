@@ -25,4 +25,5 @@ public class Statistics {
     private Integer quizUserAnswer;
     private Integer correctQuizAnswer;
     private Long questionId;
+    private String questionType;
 }
