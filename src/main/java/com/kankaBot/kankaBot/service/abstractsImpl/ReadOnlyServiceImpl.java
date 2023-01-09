@@ -1,4 +1,4 @@
-package com.kankaBot.kankaBot.service.impl;
+package com.kankaBot.kankaBot.service.abstractsImpl;
 
 import com.kankaBot.kankaBot.dao.abstracts.ReadOnlyDao;
 import com.kankaBot.kankaBot.service.abstracts.ReadOnlyService;

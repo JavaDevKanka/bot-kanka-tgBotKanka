@@ -55,7 +55,7 @@ public class KeyboardsBotImpl implements KeyboardsBot {
     public SendMessage startVictorine(long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("Тестирование Java");
+        message.setText("Тесты на знание Java");
 
         InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
@@ -65,20 +65,56 @@ public class KeyboardsBotImpl implements KeyboardsBot {
         List<InlineKeyboardButton> fourthRow = new ArrayList<>();
 
         InlineKeyboardButton inlineKeyboardButton1 = new InlineKeyboardButton();
-        inlineKeyboardButton1.setText("Начать тестирование");
+        inlineKeyboardButton1.setText("Выбрать тему для тестирования");
         inlineKeyboardButton1.setCallbackData("/go");
 
         InlineKeyboardButton inlineKeyboardButton2 = new InlineKeyboardButton();
         inlineKeyboardButton2.setText("Мой счет");
         inlineKeyboardButton2.setCallbackData("/score");
 
-        InlineKeyboardButton inlineKeyboardButton3 = new InlineKeyboardButton();
-        inlineKeyboardButton3.setText("Топ 10");
-        inlineKeyboardButton3.setCallbackData("/top10");
-
         InlineKeyboardButton inlineKeyboardButton4 = new InlineKeyboardButton();
         inlineKeyboardButton4.setText("Очистить статистику");
         inlineKeyboardButton4.setCallbackData("/clearstat");
+
+        firstRow.add(inlineKeyboardButton1);
+        secondRow.add(inlineKeyboardButton2);
+        fourthRow.add(inlineKeyboardButton4);
+        rowsInLine.add(firstRow);
+        rowsInLine.add(secondRow);
+        rowsInLine.add(thirdRow);
+        rowsInLine.add(fourthRow);
+        markupInline.setKeyboard(rowsInLine);
+        message.setReplyMarkup(markupInline);
+        return message;
+    }
+    @Override
+    public SendMessage selectThemeVictorine(long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("Выберите тему для тестирования");
+
+        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
+        List<InlineKeyboardButton> firstRow = new ArrayList<>();
+        List<InlineKeyboardButton> secondRow = new ArrayList<>();
+        List<InlineKeyboardButton> thirdRow = new ArrayList<>();
+        List<InlineKeyboardButton> fourthRow = new ArrayList<>();
+
+        InlineKeyboardButton inlineKeyboardButton1 = new InlineKeyboardButton();
+        inlineKeyboardButton1.setText("Базовые конструкции");
+        inlineKeyboardButton1.setCallbackData("/basic");
+
+        InlineKeyboardButton inlineKeyboardButton2 = new InlineKeyboardButton();
+        inlineKeyboardButton2.setText("ООП");
+        inlineKeyboardButton2.setCallbackData("/oop");
+
+        InlineKeyboardButton inlineKeyboardButton3 = new InlineKeyboardButton();
+        inlineKeyboardButton3.setText("Exceptions");
+        inlineKeyboardButton3.setCallbackData("/exceptions");
+
+        InlineKeyboardButton inlineKeyboardButton4 = new InlineKeyboardButton();
+        inlineKeyboardButton4.setText("IO, File system access");
+        inlineKeyboardButton4.setCallbackData("/IO");
 
         firstRow.add(inlineKeyboardButton1);
         secondRow.add(inlineKeyboardButton2);
@@ -127,33 +163,17 @@ public class KeyboardsBotImpl implements KeyboardsBot {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText("Главное меню");
-
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         keyboardMarkup.setResizeKeyboard(true);
-
         List<KeyboardRow> keyboardRows = new ArrayList<>();
-
-
         InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
         inlineKeyboardButton.setCallbackData("/createQuestion");
-
         KeyboardRow row = new KeyboardRow();
-        row.add("Получить случайный вопрос");
-        row.add("Начать игру");
-
-
+        row.add("Тест по случайным темам");
+        row.add("Тестирование по теме");
         keyboardRows.add(row);
-
-        row = new KeyboardRow();
-        row.add("Регистрация");
-        row.add("Показать ваши данные");
-        row.add("Удалить ваши данные");
-
-        keyboardRows.add(row);
-
         keyboardMarkup.setKeyboard(keyboardRows);
         keyboardMarkup.setInputFieldPlaceholder("Введите");
-
         message.setReplyMarkup(keyboardMarkup);
         return message;
     }

@@ -9,4 +9,5 @@ public interface KeyboardsBot {
     SendMessage startVictorine(long chatId);
     SendMessage register(long chatId);
     SendMessage mainMenu(long chatId);
+    SendMessage selectThemeVictorine(long chatId);
 }

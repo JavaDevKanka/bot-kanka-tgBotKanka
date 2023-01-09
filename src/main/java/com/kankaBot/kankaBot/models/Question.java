@@ -23,6 +23,8 @@ public class Question {
 
     private String question;
 
+    private String topic;
+
     private String explanation;
 
     @OneToMany(cascade = CascadeType.ALL)
