@@ -1,21 +1,17 @@
 package com.kankaBot.kankaBot.service;
 
 import com.kankaBot.kankaBot.config.BotConfig;
-import com.kankaBot.kankaBot.dao.repository.AdsRepository;
 import com.kankaBot.kankaBot.dao.repository.UserRepository;
-import com.kankaBot.kankaBot.models.Ads;
 import com.kankaBot.kankaBot.models.MessagesBuffer;
 import com.kankaBot.kankaBot.models.Statistics;
-import com.kankaBot.kankaBot.models.User;
 import com.kankaBot.kankaBot.service.abstracts.MessagesBufferService;
 import com.kankaBot.kankaBot.service.abstracts.QuestionGenerateService;
 import com.kankaBot.kankaBot.service.abstracts.StatisticsService;
+import com.kankaBot.kankaBot.service.functions.FileOperations;
 import com.kankaBot.kankaBot.service.functions.KeyboardsBot;
 import com.kankaBot.kankaBot.service.functions.MarginFunc;
-import com.kankaBot.kankaBot.service.functions.FileOperations;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
@@ -39,8 +35,6 @@ import java.util.Map;
 public class TelegramBot extends TelegramLongPollingBot {
 
     private final UserRepository userRepository;
-    private final AdsRepository adsRepository;
-
     private final StatisticsService statisticsService;
     private final KeyboardsBot keyboardsBot;
     private final FileOperations fileOperations;
@@ -53,10 +47,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     private static final String ERROR_TEXT = "Error occurred: ";
     private static final String YES_BUTTON = "YES_BUTTON";
     private static final String NO_BUTTON = "NO_BUTTON";
-    int counterGlobal = 0;
 
     public TelegramBot(BotConfig config,
-                       AdsRepository adsRepository,
                        UserRepository userRepository,
                        StatisticsService statisticsService,
                        KeyboardsBot keyboardsBot,
@@ -64,7 +56,6 @@ public class TelegramBot extends TelegramLongPollingBot {
                        MessagesBufferService messagesBufferService,
                        MarginFunc marginFunc, QuestionGenerateService questionGenerateService) {
         this.config = config;
-        this.adsRepository = adsRepository;
         this.statisticsService = statisticsService;
         this.keyboardsBot = keyboardsBot;
         this.fileOperations = fileOperations;
@@ -126,7 +117,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 commands.get(messageText).run();
 
             } else if (messageText.equals("Тест по случайным темам")) {
-                counterGlobal = 0;
+                statisticsService.clearStatisticForTheUserChatId(chatId);
                 globalQuestionVictorineSelector(chatId, questionGenerateService.listIdQuestions());
 
             } else {
@@ -144,13 +135,11 @@ public class TelegramBot extends TelegramLongPollingBot {
     @SneakyThrows
     public void globalQuestionVictorineSelector(Long chatId, List<Long> listIds) {
 
-        if (counterGlobal < 10) {
+        if (statisticsService.getCountUserAnswers(chatId) < 10) {
             executeQuestion(marginFunc.getQuestion(chatId, listIds));
-            counterGlobal++;
         } else {
             fileOperations.resultImage(chatId);
-            executeImage(marginFunc.sendPhoto(chatId, "./imageResult/end.png"));
-            counterGlobal = 0;
+            executeImage(marginFunc.sendPhoto(chatId, "./imageResult/" + chatId + "/end.png"));
         }
     }
 
@@ -209,14 +198,4 @@ public class TelegramBot extends TelegramLongPollingBot {
         executeSendMessage(message);
     }
 
-    @Scheduled(cron = "${cron.scheduler}")
-    public void sendAds() {
-        var ads = adsRepository.findAll();
-        var users = userRepository.findAll();
-        for (Ads ad : ads) {
-            for (User user : users) {
-                prepareAndSendMessage(user.getChatId(), ad.getAd());
-            }
-        }
-    }
 }

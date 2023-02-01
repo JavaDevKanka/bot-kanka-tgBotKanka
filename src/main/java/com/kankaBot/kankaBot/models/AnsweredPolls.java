@@ -10,16 +10,15 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity(name = "ads_table")
-public class Ads {
-
+public class AnsweredPolls {
     @Id
-    @GeneratedValue(generator = "ads_seq")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    private String ad;
+    private Long chatId;
+    private Long questionId;
 }

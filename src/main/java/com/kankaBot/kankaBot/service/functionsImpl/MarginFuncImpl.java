@@ -65,7 +65,7 @@ public class MarginFuncImpl implements MarginFunc {
         sendPhoto.setPhoto(new InputFile(new File(urlImage)));
         return sendPhoto;
     }
-
+// Нужно реализовать метод так, чтобы ему не требовался внешний listOfQuestions, а чтобы выборка пула неотвеченных вопросов появлялась тут
     @Override
     public SendPoll getQuestion(Long chatId, List<Long> listOfQuestions) {
         SendPoll sendPoll = new SendPoll();

@@ -84,11 +84,7 @@ public class FileOperationsImpl implements FileOperations {
             question.setTopic(subStrList.get(1));
             for (int i = 2; i < subStrList.size() - 1; i++) {
                 Answer answer = new Answer();
-                if (subStrList.get(i).contains("$")) {
-                    answer.setIs_right(true);
-                } else {
-                    answer.setIs_right(false);
-                }
+                answer.setIs_right(subStrList.get(i).contains("$"));
                 answer.setAnswer(subStrList.get(i).replace('$', ' '));
                 answer.setSeqnumber((long) i - 1);
                 answers.add(answer);
@@ -107,10 +103,8 @@ public class FileOperationsImpl implements FileOperations {
         Graphics2D g = image.createGraphics();
         g.setColor(Color.white);
         g.setBackground(Color.DARK_GRAY);
-        g.setFont(new Font("Arial", Font.CENTER_BASELINE, 15));
-
+        g.setFont(new Font("Arial", Font.BOLD, 15));
         g.drawString("Результат пройденного теста ^_^", 600, 50);
-
         g.drawString("Вопросы с неправильным ответом", 100, 80);
         g.drawString(grade, 100, 115);
 
@@ -118,24 +112,23 @@ public class FileOperationsImpl implements FileOperations {
         int ordinalY = 160;
 
         for (int i = 0; i < resultOfTests.size(); i++) {
-            g.drawString("Вопрос - " + resultOfTests.get(i).getQuestion(), ordinalX, ordinalY);
-
+            String question = resultOfTests.get(i).getQuestion();
+            if (question.length() > 100) {
+                g.drawString("Вопрос - " + question.substring(0, 100), ordinalX, ordinalY);
+                g.drawString("Вопрос - " + question.substring(100, question.length() - 1 ), ordinalX, ordinalY + 20);
+            } else {
+                g.drawString("Вопрос - " + question, ordinalX, ordinalY);
+            }
             for (int j = 0; j < 1; j++) {
                 g.drawString("Правильный ответ - " + resultOfTests.get(i).getCorrectAnswer(), ordinalX, ordinalY + 25);
             }
-
             for (int j = 0; j < 900; j++) {
                 g.drawString("_", ordinalX + j, ordinalY + 30);
             }
             ordinalY += 60;
         }
+        boolean check =  new File(file.getParentFile() + "/" + chatId).mkdir();
+        ImageIO.write(image, "png", new File(file.getParentFile() + "/" + chatId, "end.png"));
 
-        for (ResultOfTest s : resultOfTests) {
-            System.out.println(s.getUserAnswer());
-        }
-
-
-        ImageIO.write(image, "png", new File(file.getParentFile(), "end.png"));
-        statisticsService.clearStatisticForTheUserChatId(chatId);
     }
 }
