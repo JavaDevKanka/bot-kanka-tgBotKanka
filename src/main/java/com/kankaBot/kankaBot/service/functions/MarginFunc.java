@@ -7,13 +7,12 @@ import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.polls.PollAnswer;
 
-import java.util.List;
-
 public interface MarginFunc {
     SendMessage prepareAndSendMessage(long chatId, String textToSend);
-    SendPoll getQuestion(Long chatId, List<Long> listOfQuestions);
-    Statistics setStatisticsFromQuiz(PollAnswer pollAnswer);
+    SendPoll getQuestion(Long chatId);
+    Statistics setStatisticsFromQuiz(PollAnswer pollAnswer, Long chatId);
     void registerUser(Message msg);
     void saveQuestion(Long chatId);
     SendPhoto sendPhoto(Long chatId, String urlImage);
+    void generatePoolIdsForQuestions(Long chatId, int quantityOfQuestions, String typeOfQuest);
 }

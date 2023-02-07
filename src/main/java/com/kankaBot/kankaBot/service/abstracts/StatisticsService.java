@@ -5,7 +5,6 @@ import com.kankaBot.kankaBot.models.dto.ResultOfTest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Set;
 
 @Service
 public interface StatisticsService extends ReadWriteService<Statistics, Long> {
@@ -16,4 +15,6 @@ public interface StatisticsService extends ReadWriteService<Statistics, Long> {
     Long getCountUserAnswers(Long chatId);
     int getCountRightForResultByChatId(Long chatId);
     List<ResultOfTest> getLoseAnswersForResultByChatId(Long chatId);
+    List<Long> getUnansweredQuestionIdFromStatistics(Long chatId);
+    List<Long> getAnsweredQuestionIdFromStatistics(Long chatId);
 }

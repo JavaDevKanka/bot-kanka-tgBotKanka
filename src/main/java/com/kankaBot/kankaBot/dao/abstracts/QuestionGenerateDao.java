@@ -11,5 +11,10 @@ public interface QuestionGenerateDao extends ReadWriteDao<Question, Long> {
 
     void createQuestion(String question, Answer answers, Boolean is_multianswer);
     List<Long> listIdQuestions();
+    List<Long> listIdQuestionsBasic();
+    List<Long> listIdQuestionsExceptions();
+    List<Long> listIdQuestionsOOP();
+    List<Long> listIdQuestionsIO();
+    List<Long> listIdQuestionsStream();
 
 }

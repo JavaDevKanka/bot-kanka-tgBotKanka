@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.util.List;
-import java.util.Set;
 
 @Service
 public class StatisticsServiceImpl extends ReadWriteServiceImpl<Statistics, Long> implements StatisticsService {
@@ -61,5 +60,14 @@ public class StatisticsServiceImpl extends ReadWriteServiceImpl<Statistics, Long
         return statisticsDao.getLoseAnswersForResultByChatId(chatId);
     }
 
+    @Override
+    public List<Long> getUnansweredQuestionIdFromStatistics(Long chatId) {
+        return statisticsDao.getUnansweredQuestionIdFromStatistics(chatId);
+    }
+
+    @Override
+    public List<Long> getAnsweredQuestionIdFromStatistics(Long chatId) {
+        return statisticsDao.getUnansweredQuestionIdFromStatistics(chatId);
+    }
 
 }

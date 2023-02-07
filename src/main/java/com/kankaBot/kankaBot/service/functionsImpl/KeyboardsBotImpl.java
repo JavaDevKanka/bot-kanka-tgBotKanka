@@ -106,7 +106,7 @@ public class KeyboardsBotImpl implements KeyboardsBot {
 
         InlineKeyboardButton inlineKeyboardButton2 = new InlineKeyboardButton();
         inlineKeyboardButton2.setText("ООП");
-        inlineKeyboardButton2.setCallbackData("/oop");
+        inlineKeyboardButton2.setCallbackData("/OOP");
 
         InlineKeyboardButton inlineKeyboardButton3 = new InlineKeyboardButton();
         inlineKeyboardButton3.setText("Exceptions");
@@ -175,6 +175,53 @@ public class KeyboardsBotImpl implements KeyboardsBot {
         keyboardMarkup.setKeyboard(keyboardRows);
         keyboardMarkup.setInputFieldPlaceholder("Введите");
         message.setReplyMarkup(keyboardMarkup);
+        return message;
+    }
+
+    @Override
+    public SendMessage nextQuestion(long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("Следующий вопрос?");
+
+        InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
+        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+        var yesButton = new InlineKeyboardButton();
+
+        yesButton.setText("Да");
+        yesButton.setCallbackData("NEXT_QUESTION");
+
+        var noButton = new InlineKeyboardButton();
+
+        noButton.setText("Остановить тестирование");
+        noButton.setCallbackData("STOP_QUESTION");
+
+        rowInLine.add(yesButton);
+        rowInLine.add(noButton);
+
+        rowsInLine.add(rowInLine);
+
+        markupInLine.setKeyboard(rowsInLine);
+        message.setReplyMarkup(markupInLine);
+        return message;
+    }
+
+    @Override
+    public SendMessage getResult(long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("----------------");
+        InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
+        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+        var yesButton = new InlineKeyboardButton();
+        yesButton.setText("Получить результат");
+        yesButton.setCallbackData("STOP_QUESTION");
+        rowInLine.add(yesButton);
+        rowsInLine.add(rowInLine);
+        markupInLine.setKeyboard(rowsInLine);
+        message.setReplyMarkup(markupInLine);
         return message;
     }
 }

@@ -81,7 +81,7 @@ public class FileOperationsImpl implements FileOperations {
             Set<Answer> answers = new HashSet<>();
             Question question = new Question();
             question.setQuestion(subStrList.get(0));
-            question.setTopic(subStrList.get(1));
+            question.setTopic(subStrList.get(1).trim());
             for (int i = 2; i < subStrList.size() - 1; i++) {
                 Answer answer = new Answer();
                 answer.setIs_right(subStrList.get(i).contains("$"));
@@ -96,7 +96,7 @@ public class FileOperationsImpl implements FileOperations {
 
     @SneakyThrows
     public void resultImage(Long chatId) {
-        String grade = "Ваша оценка - " + statisticsService.getCountRightForResultByChatId(chatId);
+        String grade = "Ваша оценка - " + statisticsService.getCountRightForResultByChatId(chatId) + " из 100";
         List<ResultOfTest> resultOfTests = statisticsService.getLoseAnswersForResultByChatId(chatId);
         File file = new File("./imageResult/start.png");
         BufferedImage image = ImageIO.read(file);
@@ -104,31 +104,28 @@ public class FileOperationsImpl implements FileOperations {
         g.setColor(Color.white);
         g.setBackground(Color.DARK_GRAY);
         g.setFont(new Font("Arial", Font.BOLD, 15));
-        g.drawString("Результат пройденного теста ^_^", 600, 50);
         g.drawString("Вопросы с неправильным ответом", 100, 80);
         g.drawString(grade, 100, 115);
 
         int ordinalX = 100;
         int ordinalY = 160;
 
-        for (int i = 0; i < resultOfTests.size(); i++) {
-            String question = resultOfTests.get(i).getQuestion();
+        for (ResultOfTest resultOfTest : resultOfTests) {
+            String question = resultOfTest.getQuestion();
             if (question.length() > 100) {
-                g.drawString("Вопрос - " + question.substring(0, 100), ordinalX, ordinalY);
-                g.drawString("Вопрос - " + question.substring(100, question.length() - 1 ), ordinalX, ordinalY + 20);
+                g.drawString("Вопрос - " + question.substring(0, 100) + "...", ordinalX, ordinalY);
             } else {
                 g.drawString("Вопрос - " + question, ordinalX, ordinalY);
             }
             for (int j = 0; j < 1; j++) {
-                g.drawString("Правильный ответ - " + resultOfTests.get(i).getCorrectAnswer(), ordinalX, ordinalY + 25);
+                g.drawString("Правильный ответ - " + resultOfTest.getCorrectAnswer(), ordinalX, ordinalY + 25);
             }
             for (int j = 0; j < 900; j++) {
                 g.drawString("_", ordinalX + j, ordinalY + 30);
             }
             ordinalY += 60;
         }
-        boolean check =  new File(file.getParentFile() + "/" + chatId).mkdir();
+        boolean check = new File(file.getParentFile() + "/" + chatId).mkdir();
         ImageIO.write(image, "png", new File(file.getParentFile() + "/" + chatId, "end.png"));
-
     }
 }

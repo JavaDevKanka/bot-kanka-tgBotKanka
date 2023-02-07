@@ -7,10 +7,7 @@ import org.springframework.stereotype.Component;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Component
 public class StatisticsDaoImpl extends ReadWriteDaoImpl<Statistics, Long> implements StatisticsDao {
@@ -62,6 +59,19 @@ public class StatisticsDaoImpl extends ReadWriteDaoImpl<Statistics, Long> implem
                 "from Statistics s " +
                 "left join Question q on q.id = s.questionId" +
                 " join Answer a on a.question.id = s.questionId and s.quizUserAnswer != s.correctQuizAnswer and a.is_right = true where s.chatId =: chatId order by q.id", ResultOfTest.class)
+                .setParameter("chatId", chatId)
+                .getResultList();
+    }
+    @Override
+    public List<Long> getUnansweredQuestionIdFromStatistics(Long chatId) {
+        return entityManager.createQuery("select s.questionId from Statistics s where s.correctQuizAnswer != s.quizUserAnswer and s.chatId =: chatId", Long.class)
+                .setParameter("chatId", chatId)
+                .getResultList();
+    }
+
+    @Override
+    public List<Long> getAnsweredQuestionIdFromStatistics(Long chatId) {
+        return entityManager.createQuery("select s.questionId from Statistics s where s.correctQuizAnswer = s.quizUserAnswer and s.chatId =: chatId", Long.class)
                 .setParameter("chatId", chatId)
                 .getResultList();
     }

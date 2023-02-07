@@ -17,15 +17,37 @@ public class QuestionGenerateServiceImpl extends ReadWriteServiceImpl<Question, 
         super(questionGenerateDao);
         this.questionGenerateDao = questionGenerateDao;
     }
-
-
     public void createQuestion(String question, Answer answers, Boolean is_multianswer) {
 
     }
-
     @Override
     public List<Long> listIdQuestions() {
         return questionGenerateDao.listIdQuestions();
+    }
+
+    @Override
+    public List<Long> listIdQuestionsBasic() {
+        return questionGenerateDao.listIdQuestionsBasic();
+    }
+
+    @Override
+    public List<Long> listIdQuestionsExceptions() {
+        return questionGenerateDao.listIdQuestionsExceptions();
+    }
+
+    @Override
+    public List<Long> listIdQuestionsOOP() {
+        return questionGenerateDao.listIdQuestionsOOP();
+    }
+
+    @Override
+    public List<Long> listIdQuestionsIO() {
+        return questionGenerateDao.listIdQuestionsIO();
+    }
+
+    @Override
+    public List<Long> listIdQuestionsStream() {
+        return questionGenerateDao.listIdQuestionsStream();
     }
 
 

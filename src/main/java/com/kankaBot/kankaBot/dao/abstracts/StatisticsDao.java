@@ -5,7 +5,6 @@ import com.kankaBot.kankaBot.models.dto.ResultOfTest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Set;
 
 @Component
 public interface StatisticsDao extends ReadWriteDao<Statistics, Long> {
@@ -16,4 +15,6 @@ public interface StatisticsDao extends ReadWriteDao<Statistics, Long> {
     Long getCountUserAnswers(Long chatId);
     Long getCountRightForResultByChatId(Long chatId);
     List<ResultOfTest> getLoseAnswersForResultByChatId(Long chatId);
+    List<Long> getUnansweredQuestionIdFromStatistics(Long chatId);
+    List<Long> getAnsweredQuestionIdFromStatistics(Long chatId);
 }
